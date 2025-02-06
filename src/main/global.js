@@ -15,7 +15,7 @@ let aboutWin;
 let settings;
 let writeQueue = Promise.resolve();
 
-const appVersion = "2.0.3";
+const appVersion = "2.0.4";
 const updateLink = "https://api.github.com/repos/dyang886/Game-Save-Manager/releases/latest";
 let status = {
     backuping: false,
@@ -87,6 +87,14 @@ const initializeMenu = () => {
                             aboutWin.focus();
                         }
                     },
+                },
+                {
+                    label: 'DevTools',
+                    click: (_, browserWindow) => {
+                      if (browserWindow) {
+                        browserWindow.webContents.toggleDevTools();
+                      }
+                    }
                 },
             ],
         },

@@ -1,0 +1,68 @@
+name: Release x64
+
+on:
+  push:
+    paths:
+      - 'package.json' # 仅在 package.json 文件发生更改时触发
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: windows-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22 # Adjust the Node.js version according to your project requirements
+
+      - name: Extract version from package.json
+        id: extract_version
+        run: |
+          $VERSION = (Get-Content package.json | ConvertFrom-Json).version
+          echo "version=$VERSION" >> $env:GITHUB_ENV
+          Write-Output $VERSION
+
+      - name: Generate unique tag
+        id: generate_tag
+        run: |
+          $commitHash = "${{ github.sha }}" # Get the latest commit hash
+          $HASH = $commitHash.Substring(0, 7) # Shorten to 7 characters
+          echo "tag=$HASH" >> $env:GITHUB_ENV
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ env.version }}+${{ env.tag }}"
+          release_name: "Release v${{ env.version }}"
+          body: "This release includes the latest changes."
+          draft: false
+          prerelease: false
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Compress dist folder
+        run: |
+          7z a dist.zip ./dist/win-unpacked/*
+        shell: cmd
+
+      - name: Upload to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist.zip # Path to the build artifact
+          asset_name: GameSaveManager-x64-v${{ env.version }}.zip # File name for the uploaded artifact
+          asset_content_type: application/zip

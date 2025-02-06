@@ -1,13 +1,13 @@
 {
   "name": "game-save-manager",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Easily backup and restore your game saves anytime",
   "main": "src/main/main.js",
   "scripts": {
     "start": "concurrently -k --success=first \"npm:tailwind:build\" \"npm:electron:start\"",
     "tailwind:build": "tailwindcss -i ./src/renderer/css/style_config.css -o ./src/renderer/css/styles.css --watch",
     "electron:start": "wait-on ./src/renderer/css/styles.css && electron .",
-    "build": "electron-builder --dir",
+    "build": "electron-builder --dir --x64",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
@@ -15,7 +15,7 @@
     "icon": "./src/assets/logo.ico",
     "appId": "com.dyang.game-save-manager",
     "productName": "Game Save Manager",
-    "copyright": "Copyright © 2024-2025 Yongcan Yang",
+    "copyright": "Copyright © 2024-2025 Yongcan Yang, Zohar Lee",
     "files": [
       "src/**/*",
       "node_modules/**/*"
@@ -24,7 +24,7 @@
       "./database/database.db"
     ]
   },
-  "author": "Yongcan Yang",
+  "author": "Yongcan Yang, Zohar Lee",
   "license": "GPL-3.0-only",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.6.0",
