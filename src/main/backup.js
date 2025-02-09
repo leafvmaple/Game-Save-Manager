@@ -81,6 +81,15 @@ async function getGameDataFromDB() {
             stmtInstallFolder = db.prepare("SELECT * FROM games WHERE install_folder = ?");
             const gameInstallPaths = getSettings().gameInstalls;
 
+            const customDBPath = path.join(getSettings().backupPath, 'custom_database.json');
+            const customDBs = []
+            if (fs.existsSync(customDBPath)) {
+                const customs = JSON.parse(fs.readFileSync(customDBPath, 'utf-8'));
+                for (const game of customs) {
+                    customDBs.push(game)
+                }
+            }
+
             // Process database entries
             if (gameInstallPaths.length > 0) {
                 for (const installPath of gameInstallPaths) {
@@ -117,6 +126,26 @@ async function getGameDataFromDB() {
                                     console.error(`Error processing database game ${getGameDisplayName(row)}: ${err.stack}`);
                                     errors.push(`${i18next.t('alert.backup_process_error_db', { game_name: getGameDisplayName(row) })}: ${err.message}`);
                                 }
+                            }
+                        }
+
+                        const customs = customDBs.filter(game => game.install_folder === dir)
+                        for (const custom of customs) {
+                            try {
+                                custom.wiki_page_id = custom.wiki_page_id.toString();
+                                custom.platform = ['Custom'];
+                                custom.install_path = path.join(installPath, dir);
+                                custom.latest_backup = getNewestBackup(custom.wiki_page_id);
+
+                                const processed_game = await process_game(custom);
+                                console.log('processed_game', processed_game)
+                                if (processed_game.resolved_paths.length !== 0) {
+                                    games.push(processed_game);
+                                }
+
+                            } catch (err) {
+                                console.error(`Error processing custom game ${custom.title}: ${err.stack}`);
+                                errors.push(`${i18next.t('alert.backup_process_error_custom', { game_name: custom.title })}: ${err.message}`);
                             }
                         }
                     }
