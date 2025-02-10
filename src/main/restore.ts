@@ -1,57 +1,53 @@
-const { BrowserWindow, dialog } = require('electron');
+import { BrowserWindow, dialog } from 'electron';
+import { exec } from 'child_process';
+import fsOriginal from 'original-fs';
+import path from 'path';
+import util from 'util';
+import fse from 'fs-extra';
+import i18next from 'i18next';
+import moment from 'moment';
 
-const { exec } = require('child_process');
-const fsOriginal = require('original-fs');
-const path = require('path');
-const util = require('util');
-
-const fse = require('fs-extra');
-const i18next = require('i18next');
-const moment = require('moment');
-
-const { getGameData } = require('./gameData');
-const { getGameDisplayName, calculateDirectorySize, ensureWritable, copyFolder, placeholderMapping, getSettings } = require('./global');
+import { getGameData } from './gameData';
+import { getGameDisplayName, calculateDirectorySize, ensureWritable, copyFolder, placeholderMapping, getSettings } from './global';
 
 const execPromise = util.promisify(exec);
 
+interface BackupPath {
+    folder_name: string;
+    template: string;
+    type: 'folder' | 'file' | 'reg';
+    install_folder: string;
+}
 
-// A sample restore game object: {
-//     "wiki_page_id": "97395",
-//     "latest_backup": "2024/09/08 15:23",
-//     "title": "Control",
-//     "zh_CN": "控制",
-//     "backup_size": 132168,
-//     "backups": [
-//         {
-//             "date": "2024-09-08_15-23",
-//             "title": "Control",
-//             "zh_CN": "控制",
-//             "backup_size": 132168,
-//             "backup_paths": [
-//                 {
-//                     "folder_name": "path1",
-//                     "template": "{{p|steam}}\\userdata\\477235894\\870780\\remote",
-//                     "type": "folder",
-//                     "install_folder": "Control"
-//                 },
-//                 {
-//                     "folder_name": "path2",
-//                     "template": "{{p|game}}\\renderer.ini",
-//                     "type": "file",
-//                     "install_folder": "Control"
-//                 }
-//             ]
-//         }
-//     ]
-// }
+interface Backup {
+    date: string;
+    title: string;
+    zh_CN: string;
+    backup_size: number;
+    backup_paths: BackupPath[];
+}
 
-async function getGameDataForRestore() {
+interface Game {
+    wiki_page_id: string;
+    latest_backup: string;
+    title: string;
+    zh_CN: string;
+    backup_size: number;
+    backups: Backup[];
+}
+
+interface RestoreResult {
+    action: string | null;
+    error: string | null;
+}
+
+async function getGameDataForRestore(): Promise<{ games: Game[], errors: string[] }> {
     const backupPath = getSettings().backupPath;
     fsOriginal.mkdirSync(backupPath, { recursive: true });
     const gameFolders = fsOriginal.readdirSync(backupPath);
 
-    const games = [];
-    const errors = [];
+    const games: Game[] = [];
+    const errors: string[] = [];
 
     for (const gameFolder of gameFolders) {
         const wikiIdFolderPath = path.join(backupPath, gameFolder);
@@ -59,7 +55,7 @@ async function getGameDataForRestore() {
 
         try {
             if (stats.isDirectory()) {
-                const backups = [];
+                const backups: Backup[] = [];
 
                 // Read all backup instance folders inside this game folder
                 const backupFolders = fsOriginal.readdirSync(wikiIdFolderPath);
@@ -112,9 +108,9 @@ async function getGameDataForRestore() {
     return { games, errors };
 }
 
-async function restoreGame(gameObj, userActionForAll) {
+async function restoreGame(gameObj: Game, userActionForAll: string | null): Promise<RestoreResult> {
     let localActionForAll = userActionForAll;
-    const pathsToCheck = [];
+    const pathsToCheck: { sourcePath: string, destinationPath: string, backupType: string }[] = [];
     let gameNotInstalled = false;
     let steamNotInstalled = false;
     let ubisoftNotInstalled = false;
@@ -201,7 +197,7 @@ async function restoreGame(gameObj, userActionForAll) {
     }
 }
 
-async function shouldSkip(pathsToCheck, gameDisplayName, userActionForAll) {
+async function shouldSkip(pathsToCheck: { sourcePath: string, destinationPath: string }[], gameDisplayName: string, userActionForAll: string | null): Promise<{ skip: boolean, actionForAll: string | null }> {
     let latestSourceModTime = new Date(0);
     let latestDestModTime = new Date(0);
 
@@ -236,8 +232,7 @@ async function shouldSkip(pathsToCheck, gameDisplayName, userActionForAll) {
             checkboxLabel: i18next.t('alert.do_this_for_all'),
             defaultId: 1, // Default to 'Skip'
             cancelId: 1,
-            noLink: true,
-            modal: true
+            noLink: true
         });
 
         const userChoice = response.response === 0 ? 'replace' : 'skip';
@@ -252,7 +247,7 @@ async function shouldSkip(pathsToCheck, gameDisplayName, userActionForAll) {
     return { skip: false, actionForAll: null };
 }
 
-function getLatestModificationTime(directory) {
+function getLatestModificationTime(directory: string): Date {
     if (!fsOriginal.existsSync(directory)) {
         return new Date(0);
     }
@@ -288,7 +283,7 @@ function getLatestModificationTime(directory) {
     }
 }
 
-function resolveTemplatedRestorePath(templatedPath, installFolder) {
+function resolveTemplatedRestorePath(templatedPath: string, installFolder: string): string {
     let basePath = templatedPath.replace(/\{\{p\|[^\}]+\}\}/gi, match => {
         const normalizedMatch = match.toLowerCase().replace(/\\/g, '/');
 
@@ -306,7 +301,7 @@ function resolveTemplatedRestorePath(templatedPath, installFolder) {
     return basePath;
 }
 
-function getGameInstallPath(installFolder) {
+function getGameInstallPath(installFolder: string): string {
     const gameInstallPaths = getSettings().gameInstalls;
 
     for (const installPath of gameInstallPaths) {
@@ -324,7 +319,7 @@ function getGameInstallPath(installFolder) {
     return 'gameNotInstalled';
 }
 
-module.exports = {
+export {
     getGameDataForRestore,
     restoreGame,
 };
