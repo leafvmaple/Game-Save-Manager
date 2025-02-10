@@ -15,7 +15,7 @@ const moment = require('moment');
 const sqlite3 = require('sqlite3');
 const WinReg = require('winreg');
 
-const { getMainWin, getGameDisplayName, calculateDirectorySize, ensureWritable, getNewestBackup, fsOriginalCopyFolder, placeholder_mapping, placeholder_identifier, osKeyMap, getSettings } = require('./global');
+const { getMainWindow, getGameDisplayName, calculateDirectorySize, ensureWritable, getNewestBackup, copyFolder, placeholderMapping, placeholderIdentifier, osKeyMap, getSettings } = require('./global');
 const { getGameData } = require('./gameData');
 
 const execPromise = util.promisify(exec);
@@ -309,7 +309,7 @@ async function process_game(db_game_row) {
             await new Promise((resolve, reject) => {
                 registryKey.keyExists((err, exists) => {
                     if (err) {
-                        getMainWin().webContents.send('show-alert', 'error', `${i18next.t('alert.registry_existence_check_failed')}: ${db_game_row.title}`);
+                        getMainWindow().webContents.send('show-alert', 'error', `${i18next.t('alert.registry_existence_check_failed')}: ${db_game_row.title}`);
                         console.error(`Error checking registry existence for ${db_game_row.title}: ${err}`);
                         return reject(err);
                     }
@@ -371,7 +371,7 @@ async function resolveTemplatedBackupPath(templatedPath, gameInstallPath) {
             return app.getPath('documents');
         }
 
-        return placeholder_mapping[normalizedMatch] || match;
+        return placeholderMapping[normalizedMatch] || match;
     });
 
     // Final check for unresolved placeholders, but ignore {{p|uid}}
@@ -499,7 +499,7 @@ async function backupGame(gameObj) {
 
                 if (stats.isDirectory()) {
                     dataType = 'folder';
-                    fsOriginalCopyFolder(resolvedPath, targetPath);
+                    copyFolder(resolvedPath, targetPath);
                 } else {
                     dataType = 'file';
                     const targetFilePath = path.join(targetPath, path.basename(resolvedPath));
@@ -545,7 +545,7 @@ function finalizeTemplate(template, resolvedPath, uid, gameInstallPath) {
     function splitTemplatePath(templatePath) {
         let normalizedTemplate = templatePath.replace(/\{\{p\|[^\}]+\}\}/gi, match => {
             const normalizedMatch = match.toLowerCase().replace(/\\/g, '/');
-            return placeholder_identifier[normalizedMatch] || normalizedMatch;
+            return placeholderIdentifier[normalizedMatch] || normalizedMatch;
         });
 
         return normalizedTemplate.replace(/[\\/]+/g, path.sep).split(path.sep);
@@ -563,7 +563,7 @@ function finalizeTemplate(template, resolvedPath, uid, gameInstallPath) {
         // Process placeholders
         if (/\{\{p\d+\}\}/.test(currentPart)) {
             let pathMapping = '';
-            const placeholder = findKeyByValue(placeholder_identifier, currentPart) || currentPart;
+            const placeholder = findKeyByValue(placeholderIdentifier, currentPart) || currentPart;
 
             if (currentPart.includes('{{p11}}')) {
                 pathMapping = currentPart.replace('{{p11}}', gameInstallPath);
@@ -576,7 +576,7 @@ function finalizeTemplate(template, resolvedPath, uid, gameInstallPath) {
                 resolvedIndex++;
                 continue;
             } else {
-                pathMapping = placeholder_mapping[placeholder];
+                pathMapping = placeholderMapping[placeholder];
             }
 
             resultParts.push(placeholder);
@@ -609,7 +609,7 @@ async function updateDatabase() {
     const dbPath = path.join(app.getPath("userData"), "GSM Database", "database.db");
     const backupPath = `${dbPath}.backup`;
 
-    getMainWin().webContents.send('update-progress', progressId, progressTitle, 'start');
+    getMainWindow().webContents.send('update-progress', progressId, progressTitle, 'start');
 
     try {
         if (!fs.existsSync(path.dirname(dbPath))) {
@@ -629,7 +629,7 @@ async function updateDatabase() {
                 response.on('data', (chunk) => {
                     downloadedSize += chunk.length;
                     const progressPercentage = Math.round((downloadedSize / totalSize) * 100);
-                    getMainWin().webContents.send('update-progress', progressId, progressTitle, progressPercentage);
+                    getMainWindow().webContents.send('update-progress', progressId, progressTitle, progressPercentage);
                 });
 
                 response.pipe(fileStream);
@@ -653,13 +653,13 @@ async function updateDatabase() {
         if (fs.existsSync(backupPath)) {
             fs.unlinkSync(backupPath);
         }
-        getMainWin().webContents.send('update-progress', progressId, progressTitle, 'end');
-        getMainWin().webContents.send('show-alert', 'success', i18next.t('alert.update_db_success'));
+        getMainWindow().webContents.send('update-progress', progressId, progressTitle, 'end');
+        getMainWindow().webContents.send('show-alert', 'success', i18next.t('alert.update_db_success'));
 
     } catch (error) {
         console.error(`An error occurred while updating the database: ${error.message}`);
-        getMainWin().webContents.send('show-alert', 'modal', i18next.t('alert.error_during_db_update'), error.message);
-        getMainWin().webContents.send('update-progress', progressId, progressTitle, 'end');
+        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.error_during_db_update'), error.message);
+        getMainWindow().webContents.send('update-progress', progressId, progressTitle, 'end');
 
         if (fs.existsSync(backupPath)) {
             fs.copyFileSync(backupPath, dbPath);

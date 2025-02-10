@@ -10,7 +10,7 @@ const i18next = require('i18next');
 const moment = require('moment');
 
 const { getGameData } = require('./gameData');
-const { getGameDisplayName, calculateDirectorySize, ensureWritable, fsOriginalCopyFolder, placeholder_mapping, getSettings } = require('./global');
+const { getGameDisplayName, calculateDirectorySize, ensureWritable, copyFolder, placeholderMapping, getSettings } = require('./global');
 
 const execPromise = util.promisify(exec);
 
@@ -169,7 +169,7 @@ async function restoreGame(gameObj, userActionForAll) {
 
             if (backupType === 'folder') {
                 fsOriginal.mkdirSync(destinationPath, { recursive: true });
-                fsOriginalCopyFolder(sourcePath, destinationPath);
+                copyFolder(sourcePath, destinationPath);
 
             } else if (backupType === 'file') {
                 fsOriginal.mkdirSync(path.dirname(destinationPath), { recursive: true });
@@ -300,7 +300,7 @@ function resolveTemplatedRestorePath(templatedPath, installFolder) {
             return getGameData().ubisoftPath;
         }
 
-        return placeholder_mapping[normalizedMatch] || match;
+        return placeholderMapping[normalizedMatch] || match;
     });
 
     return basePath;

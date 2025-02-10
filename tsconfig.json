@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+      "target": "ES2020",
+      "module": "commonjs",
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true,
+      "outDir": "./dist-ts",
+      "rootDir": "./src",
+      "moduleResolution": "node",
+      "resolveJsonModule": true,
+      "noImplicitAny": false,
+      "noImplicitThis": false,
+      "strictNullChecks": false,  // TODO
+      "strict": false, // TODO
+      "strictFunctionTypes": false,  // TODO
+      "strictBindCallApply": false,  // TODO
+      "strictPropertyInitialization": false, // TODO
+      "noImplicitReturns": false,
+      "noFallthroughCasesInSwitch": true,
+      "allowJs": true,
+
+      "baseUrl": ".",
+      "paths": {
+        "*": ["node_modules/*"],
+      }
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["node_modules", "dist-ts"]
+  }

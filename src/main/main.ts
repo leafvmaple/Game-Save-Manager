@@ -1,21 +1,49 @@
-const { BrowserWindow, app, dialog, ipcMain, shell } = require('electron');
+import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron';
+import { randomUUID } from 'crypto';
+import fs from 'fs';
+import fsOriginal from 'original-fs';
+import os from 'os';
+import path from 'path';
+import fse from 'fs-extra';
+import i18next from 'i18next';
+import Backend from 'i18next-fs-backend';
+import pinyin from 'pinyin';
 
-const { randomUUID } = require('crypto');
-const fs = require('fs');
-const fsOriginal = require('original-fs');
-const os = require('os');
-const path = require('path');
+import { getAssetPath, getLocalePath } from './paths';
 
-const fse = require('fs-extra');
-const i18next = require('i18next');
-const Backend = require('i18next-fs-backend');
-const { pinyin } = require('pinyin');
+import {
+    createMainWindow,
+    getMainWindow,
+    getNewestBackup,
+    getAppStatus,
+    updateAppStatus,
+    checkAppUpdate,
+    osKeyMap,
+    loadSettings,
+    saveSettings,
+    getSettings,
+    moveFilesWithProgress,
+    getCurrentVersion,
+    getLatestVersion
+} from './global';
 
-const { createMainWindow, getMainWin, getNewestBackup, getStatus, updateStatus, checkAppUpdate, osKeyMap, loadSettings, saveSettings, getSettings, moveFilesWithProgress, getCurrentVersion, getLatestVersion } = require('./global');
-const { getGameData, initializeGameData, detectGamePaths } = require('./gameData');
-const { getGameDataFromDB, getAllGameDataFromDB, backupGame, updateDatabase } = require('./backup');
-const { getGameDataForRestore, restoreGame } = require("./restore");
+import {
+    getGameData,
+    initializeGameData,
+    detectGamePaths
+} from './gameData';
 
+import {
+    getGameDataFromDB,
+    getAllGameDataFromDB,
+    backupGame,
+    updateDatabase
+} from './backup';
+
+import {
+    getGameDataForRestore,
+    restoreGame
+} from "./restore";
 
 app.commandLine.appendSwitch("lang", "en");
 
@@ -37,19 +65,19 @@ app.whenReady().then(async () => {
     }
 
     app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     });
 });
 
 // Language settings
-const initializeI18next = (language) => {
+const initializeI18next = (language: string) => {
     return i18next
         .use(Backend)
         .init({
             lng: language,
             fallbackLng: "en_US",
             backend: {
-                loadPath: path.join(__dirname, "../locale/{{lng}}.json"),
+                loadPath: getLocalePath("{{lng}}.json"),
             },
         });
 };
@@ -57,11 +85,11 @@ const initializeI18next = (language) => {
 // ======================================================================
 // Listeners
 // ======================================================================
-ipcMain.handle("translate", async (event, key, options) => {
+ipcMain.handle("translate", async (event, key: string, options: any) => {
     return i18next.t(key, options);
 });
 
-ipcMain.on('save-settings', async (event, key, value) => {
+ipcMain.on('save-settings', async (event, key: string, value: any) => {
     saveSettings(key, value);
 });
 
@@ -78,26 +106,29 @@ ipcMain.handle("get-detected-game-paths", async () => {
     return getGameData().detectedGamePaths;
 });
 
-ipcMain.handle('open-url', async (event, url) => {
+ipcMain.handle('open-url', async (event, url: string) => {
     await shell.openExternal(url);
 });
 
-ipcMain.handle('open-backup-folder', async (event, wikiId) => {
+ipcMain.handle('open-backup-folder', async (event, wikiId: string) => {
     const backupPath = path.join(getSettings().backupPath, wikiId.toString());
     if (fsOriginal.existsSync(backupPath) && fsOriginal.readdirSync(backupPath).length > 0) {
         await shell.openPath(backupPath);
     } else {
-        getMainWin().webContents.send('show-alert', 'warning', i18next.t('alert.no_backups_found'));
+        getMainWindow().webContents.send('show-alert', 'warning', i18next.t('alert.no_backups_found'));
     }
 });
 
 ipcMain.handle('open-backup-dialog', async () => {
     const focusedWindow = BrowserWindow.getFocusedWindow();
 
+    if (!focusedWindow) {
+        return null;
+    }
+
     const result = await dialog.showOpenDialog(focusedWindow, {
         title: i18next.t('settings.select_backup_path'),
-        properties: ['openDirectory'],
-        modal: true
+        properties: ['openDirectory']
     });
 
     if (result.filePaths.length > 0) {
@@ -110,19 +141,26 @@ ipcMain.handle('open-backup-dialog', async () => {
 ipcMain.handle('open-dialog', async () => {
     const focusedWindow = BrowserWindow.getFocusedWindow();
 
+    if (!focusedWindow) {
+        return null;
+    }
+
     const result = await dialog.showOpenDialog(focusedWindow, {
         title: i18next.t('settings.select_path'),
-        properties: ['openDirectory'],
-        modal: true
+        properties: ['openDirectory']
     });
 
     return result;
 });
 
-ipcMain.handle('select-path', async (event, fileType) => {
+ipcMain.handle('select-path', async (event, fileType: string) => {
     const focusedWindow = BrowserWindow.getFocusedWindow();
 
-    let dialogOptions = {
+    if (!focusedWindow) {
+        return null;
+    }
+
+    let dialogOptions: any = {
         title: i18next.t('settings.select_path'),
         properties: []
     };
@@ -150,12 +188,12 @@ ipcMain.handle('select-path', async (event, fileType) => {
     return null;
 });
 
-ipcMain.handle('get-newest-backup-time', (event, wiki_page_id) => {
-    return getNewestBackup(wiki_page_id);
+ipcMain.handle('get-newest-backup-time', (event, wikiPageId: string) => {
+    return getNewestBackup(wikiPageId);
 });
 
 // Sort objects using object.titleToSort
-ipcMain.handle('sort-games', (event, games) => {
+ipcMain.handle('sort-games', (event, games: any[]) => {
     const gamesWithSortedTitles = games.map((game) => {
         try {
             const isChinese = /[\u4e00-\u9fff]/.test(game.titleToSort);
@@ -166,7 +204,7 @@ ipcMain.handle('sort-games', (event, games) => {
 
         } catch (error) {
             console.error(`Error sorting game ${game.titleToSort}: ${error.stack}`);
-            getMainWin().webContents.send('show-alert', 'modal', `${i18next.t('alert.sort_failed', { game_name: game.titleToSort })}`, error.message);
+            getMainWindow().webContents.send('show-alert', 'modal', `${i18next.t('alert.sort_failed', { game_name: game.titleToSort })}`, error.message);
             return { ...game, titleToSort: '' };
         }
     });
@@ -176,7 +214,7 @@ ipcMain.handle('sort-games', (event, games) => {
     });
 });
 
-ipcMain.handle('save-custom-entries', async (event, jsonObj) => {
+ipcMain.handle('save-custom-entries', async (event, jsonObj: any) => {
     try {
         const filePath = path.join(getSettings().backupPath, "custom_entries.json");
         let currentData = {};
@@ -187,13 +225,13 @@ ipcMain.handle('save-custom-entries', async (event, jsonObj) => {
 
         if (JSON.stringify(currentData) !== JSON.stringify(jsonObj)) {
             await fse.writeJson(filePath, jsonObj, { spaces: 4 });
-            getMainWin().webContents.send('show-alert', 'success', i18next.t('alert.save_custom_success'));
-            getMainWin().webContents.send('update-backup-table');
+            getMainWindow().webContents.send('show-alert', 'success', i18next.t('alert.save_custom_success'));
+            getMainWindow().webContents.send('update-backup-table');
         }
 
     } catch (error) {
         console.error(`Error saving custom games: ${error.stack}`);
-        getMainWin().webContents.send('show-alert', 'modal', i18next.t('alert.save_custom_error'), error.message);
+        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.save_custom_error'), error.message);
     }
 });
 
@@ -211,13 +249,13 @@ ipcMain.handle('load-custom-entries', async () => {
 
     } catch (error) {
         console.error(`Error loading custom games: ${error.stack}`);
-        getMainWin().webContents.send('show-alert', 'modal', i18next.t('alert.load_custom_error'), error.message);
+        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.load_custom_error'), error.message);
         return [];
     }
 });
 
 ipcMain.handle('get-platform', () => {
-    return osKeyMap[os.platform()];
+    return osKeyMap[os.platform() as keyof typeof osKeyMap];
 });
 
 ipcMain.handle('get-uuid', () => {
@@ -226,14 +264,14 @@ ipcMain.handle('get-uuid', () => {
 
 ipcMain.handle('get-icon-map', async () => {
     return {
-        'Custom': fs.readFileSync(path.join(__dirname, '../assets/custom.svg'), 'utf-8'),
-        'Steam': fs.readFileSync(path.join(__dirname, '../assets/steam.svg'), 'utf-8'),
-        'Ubisoft': fs.readFileSync(path.join(__dirname, '../assets/ubisoft.svg'), 'utf-8'),
-        'EA': fs.readFileSync(path.join(__dirname, '../assets/ea.svg'), 'utf-8'),
-        'Epic': fs.readFileSync(path.join(__dirname, '../assets/epic.svg'), 'utf-8'),
-        'GOG': fs.readFileSync(path.join(__dirname, '../assets/gog.svg'), 'utf-8'),
-        'Xbox': fs.readFileSync(path.join(__dirname, '../assets/xbox.svg'), 'utf-8'),
-        'Blizzard': fs.readFileSync(path.join(__dirname, '../assets/battlenet.svg'), 'utf-8'),
+        'Custom': fs.readFileSync(getAssetPath('custom.svg'), 'utf-8'),
+        'Steam': fs.readFileSync(getAssetPath('steam.svg'), 'utf-8'),
+        'Ubisoft': fs.readFileSync(getAssetPath('ubisoft.svg'), 'utf-8'),
+        'EA': fs.readFileSync(getAssetPath('ea.svg'), 'utf-8'),
+        'Epic': fs.readFileSync(getAssetPath('epic.svg'), 'utf-8'),
+        'GOG': fs.readFileSync(getAssetPath('gog.svg'), 'utf-8'),
+        'Xbox': fs.readFileSync(getAssetPath('xbox.svg'), 'utf-8'),
+        'Blizzard': fs.readFileSync(getAssetPath('battlenet.svg'), 'utf-8'),
     };
 });
 
@@ -241,13 +279,13 @@ ipcMain.handle('fetch-backup-table-data', async () => {
     const { games, errors } = await getGameDataFromDB();
 
     if (errors.length > 0) {
-        getMainWin().webContents.send('show-alert', 'modal', i18next.t('alert.backup_process_error_display'), errors);
+        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.backup_process_error_display'), errors);
     }
 
     return games;
 });
 
-ipcMain.handle('backup-game', async (event, gameObj) => {
+ipcMain.handle('backup-game', async (event, gameObj: any) => {
     return await backupGame(gameObj);
 });
 
@@ -255,27 +293,27 @@ ipcMain.handle('fetch-restore-table-data', async () => {
     const { games, errors } = await getGameDataForRestore();
 
     if (errors.length > 0) {
-        getMainWin().webContents.send('show-alert', 'modal', i18next.t('alert.restore_process_error_display'), errors);
+        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.restore_process_error_display'), errors);
     }
 
     return games;
 });
 
-ipcMain.handle('restore-game', async (event, gameObj, userActionForAll) => {
+ipcMain.handle('restore-game', async (event, gameObj: any, userActionForAll: any) => {
     return await restoreGame(gameObj, userActionForAll);
 });
 
-ipcMain.on('migrate-backups', (event, newBackupPath) => {
+ipcMain.on('migrate-backups', (event, newBackupPath: string) => {
     const currentBackupPath = getSettings().backupPath;
     moveFilesWithProgress(currentBackupPath, newBackupPath);
 });
 
 ipcMain.handle('get-status', () => {
-    return getStatus();
+    return getAppStatus();
 });
 
-ipcMain.on('update-status', (event, statusKey, statusValue) => {
-    updateStatus(statusKey, statusValue);
+ipcMain.on('update-status', (event, statusKey: string, statusValue: any) => {
+    updateAppStatus(statusKey, statusValue);
 });
 
 ipcMain.handle('get-current-version', () => {
