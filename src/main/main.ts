@@ -115,7 +115,7 @@ ipcMain.handle('open-backup-folder', async (event, wikiId: string) => {
     if (fsOriginal.existsSync(backupPath) && fsOriginal.readdirSync(backupPath).length > 0) {
         await shell.openPath(backupPath);
     } else {
-        getMainWindow().webContents.send('show-alert', 'warning', i18next.t('alert.no_backups_found'));
+        getMainWindow()!.webContents.send('show-alert', 'warning', i18next.t('alert.no_backups_found'));
     }
 });
 
@@ -204,7 +204,7 @@ ipcMain.handle('sort-games', (event, games: any[]) => {
 
         } catch (error) {
             console.error(`Error sorting game ${game.titleToSort}: ${error.stack}`);
-            getMainWindow().webContents.send('show-alert', 'modal', `${i18next.t('alert.sort_failed', { game_name: game.titleToSort })}`, error.message);
+            getMainWindow()!.webContents.send('show-alert', 'modal', `${i18next.t('alert.sort_failed', { game_name: game.titleToSort })}`, error.message);
             return { ...game, titleToSort: '' };
         }
     });
@@ -225,13 +225,13 @@ ipcMain.handle('save-custom-entries', async (event, jsonObj: any) => {
 
         if (JSON.stringify(currentData) !== JSON.stringify(jsonObj)) {
             await fse.writeJson(filePath, jsonObj, { spaces: 4 });
-            getMainWindow().webContents.send('show-alert', 'success', i18next.t('alert.save_custom_success'));
-            getMainWindow().webContents.send('update-backup-table');
+            getMainWindow()!.webContents.send('show-alert', 'success', i18next.t('alert.save_custom_success'));
+            getMainWindow()!.webContents.send('update-backup-table');
         }
 
     } catch (error) {
         console.error(`Error saving custom games: ${error.stack}`);
-        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.save_custom_error'), error.message);
+        getMainWindow()!.webContents.send('show-alert', 'modal', i18next.t('alert.save_custom_error'), error.message);
     }
 });
 
@@ -249,7 +249,7 @@ ipcMain.handle('load-custom-entries', async () => {
 
     } catch (error) {
         console.error(`Error loading custom games: ${error.stack}`);
-        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.load_custom_error'), error.message);
+        getMainWindow()!.webContents.send('show-alert', 'modal', i18next.t('alert.load_custom_error'), error.message);
         return [];
     }
 });
@@ -279,7 +279,7 @@ ipcMain.handle('fetch-backup-table-data', async () => {
     const { games, errors } = await getGameDataFromDB();
 
     if (errors.length > 0) {
-        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.backup_process_error_display'), errors);
+        getMainWindow()!.webContents.send('show-alert', 'modal', i18next.t('alert.backup_process_error_display'), errors);
     }
 
     return games;
@@ -293,7 +293,7 @@ ipcMain.handle('fetch-restore-table-data', async () => {
     const { games, errors } = await getGameDataForRestore();
 
     if (errors.length > 0) {
-        getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.restore_process_error_display'), errors);
+        getMainWindow()!.webContents.send('show-alert', 'modal', i18next.t('alert.restore_process_error_display'), errors);
     }
 
     return games;

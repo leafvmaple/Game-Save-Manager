@@ -37,6 +37,16 @@ import {
 
 const execPromise = util.promisify(exec);
 
+function handleError(error: unknown, contextMessage: string, errors: string[]): void {
+  if (error instanceof Error) {
+    console.error(`${contextMessage}: ${error.stack}`);
+    errors.push(`${i18next.t('alert.backup_process_error_display')}: ${error.message}`);
+  } else {
+    console.error(`${contextMessage}: Unknown error`);
+    errors.push(i18next.t('alert.backup_process_error_display'));
+  }
+}
+
 async function getGameDataFromDB(): Promise<{ games: Game[]; errors: string[] }> {
   const games: Game[] = [];
   const errors: string[] = [];
@@ -54,8 +64,7 @@ async function getGameDataFromDB(): Promise<{ games: Game[]; errors: string[] }>
 
     await processCustomEntriesAfterDatabaseGames(games, errors);
   } catch (error) {
-    console.error(`Error displaying backup table: ${error.stack}`);
-    errors.push(`${i18next.t('alert.backup_process_error_display')}: ${error.message}`);
+    handleError(error, 'Error updating database', errors);
   }
 
   return { games, errors };
@@ -69,7 +78,7 @@ async function ensureDatabaseExists(dbPath: string): Promise<void> {
         i18next.t('alert.missing_database_file'),
         i18next.t('alert.missing_database_file_message')
       );
-      throw new Error('Database file is missing');
+      throw Error('Database file is missing');
     } else {
       await fse.copy(installedDbPath, dbPath);
     }
@@ -152,10 +161,7 @@ async function processDatabaseRows(rows: any[], dir: string, installPath: string
         games.push(processed_game);
       }
     } catch (err) {
-      console.error(`Error processing database game ${getGameDisplayName(row)}: ${err.stack}`);
-      errors.push(
-        `${i18next.t('alert.backup_process_error_db', { game_name: getGameDisplayName(row) })}: ${err.message}`
-      );
+      handleError(err, `Error processing database game ${getGameDisplayName(row)}`, errors);
     }
   }
 }
@@ -173,10 +179,7 @@ async function processCustomGames(customs: Game[], dir: string, installPath: str
         games.push(processed_game);
       }
     } catch (err) {
-      console.error(`Error processing custom game ${custom.title}: ${err.stack}`);
-      errors.push(
-        `${i18next.t('alert.backup_process_error_custom', { game_name: custom.title })}: ${err.message}`
-      );
+      handleError(err, `Error processing custom game ${custom.title}`, errors);
     }
   }
 }
@@ -208,10 +211,7 @@ async function processCustomEntries(customJsonPath: string): Promise<{ customGam
         customGames.push(processed_game);
       }
     } catch (err) {
-      console.error(`Error processing custom game ${customEntry.title}: ${err.stack}`);
-      customGameErrors.push(
-        `${i18next.t('alert.backup_process_error_custom', { game_name: customEntry.title })}: ${err.message}`
-      );
+      handleError(err, `Error processing custom game ${customEntry.title}`, customGameErrors);
     }
   }
 
@@ -355,7 +355,7 @@ async function processRegistryPaths(db_game_row: Game, resolved_paths: ResolvedP
     await new Promise<void>((resolve, reject) => {
       registryKey.keyExists((err, exists) => {
         if (err) {
-          getMainWindow().webContents.send(
+          getMainWindow()!.webContents.send(
             'show-alert',
             'error',
             `${i18next.t('alert.registry_existence_check_failed')}: ${db_game_row.title}`
@@ -402,8 +402,10 @@ async function backupGame(gameObj: Game): Promise<string | null> {
     await manageOldBackups(gameBackupPath);
 
   } catch (error) {
-    console.error(`Error during backup for game ${getGameDisplayName(gameObj)}: ${error.stack}`);
-    return `${i18next.t('alert.backup_game_error', { game_name: getGameDisplayName(gameObj) })}: ${error.message}`;
+    if (error instanceof Error) {
+      handleError(error, `Error during backup for game ${getGameDisplayName(gameObj)}`, []);
+      return `${i18next.t('alert.backup_game_error', { game_name: getGameDisplayName(gameObj) })}: ${error.message}`;
+    }
   }
 
   return null;
@@ -477,7 +479,7 @@ async function updateDatabase(): Promise<void> {
   const dbPath = path.join(app.getPath("userData"), "GSM Database", "database.db");
   const backupPath = `${dbPath}.backup`;
 
-  getMainWindow().webContents.send('update-progress', progressId, progressTitle, 'start');
+  getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, 'start');
 
   try {
     await ensureDirectoryExists(path.dirname(dbPath));
@@ -485,8 +487,8 @@ async function updateDatabase(): Promise<void> {
     await downloadDatabase(databaseLink, dbPath, progressId, progressTitle);
     await removeBackup(backupPath);
 
-    getMainWindow().webContents.send('update-progress', progressId, progressTitle, 'end');
-    getMainWindow().webContents.send('show-alert', 'success', i18next.t('alert.update_db_success'));
+    getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, 'end');
+    getMainWindow()!.webContents.send('show-alert', 'success', i18next.t('alert.update_db_success'));
   } catch (error) {
     handleUpdateError(error, backupPath, dbPath, progressId, progressTitle);
   }
@@ -515,7 +517,7 @@ async function downloadDatabase(databaseLink: string, dbPath: string, progressId
       response.on('data', (chunk) => {
         downloadedSize += chunk.length;
         const progressPercentage = Math.round((downloadedSize / totalSize) * 100);
-        getMainWindow().webContents.send('update-progress', progressId, progressTitle, progressPercentage);
+        getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, progressPercentage);
       });
 
       response.pipe(fileStream);
@@ -543,10 +545,12 @@ async function removeBackup(backupPath: string): Promise<void> {
   }
 }
 
-function handleUpdateError(error: Error, backupPath: string, dbPath: string, progressId: string, progressTitle: string): void {
-  console.error(`An error occurred while updating the database: ${error.message}`);
-  getMainWindow().webContents.send('show-alert', 'modal', i18next.t('alert.error_during_db_update'), error.message);
-  getMainWindow().webContents.send('update-progress', progressId, progressTitle, 'end');
+function handleUpdateError(error: unknown, backupPath: string, dbPath: string, progressId: string, progressTitle: string): void {
+  if (error instanceof Error) {
+    console.error(`An error occurred while updating the database: ${error.message}`);
+    getMainWindow()!.webContents.send('show-alert', 'modal', i18next.t('alert.error_during_db_update'), error.message);
+  }
+  getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, 'end');
 
   if (fs.existsSync(backupPath)) {
     fs.copyFileSync(backupPath, dbPath);
