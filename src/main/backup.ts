@@ -52,19 +52,54 @@ async function getGameDataFromDB(): Promise<{ games: Game[]; errors: string[] }>
   const errors: string[] = [];
   const dbPath = path.join(app.getPath('userData'), 'GSM Database', 'database.db');
 
+  let db: Database | null = null;
+  let stmtInstallFolder: sqlite3.Statement | null = null;
+
   try {
     await ensureDatabaseExists(dbPath);
-    const db = new Database(dbPath, sqlite3.OPEN_READONLY);
-    const stmtInstallFolder = db.prepare('SELECT * FROM games WHERE install_folder = ?');
+    db = new Database(dbPath, sqlite3.OPEN_READONLY);
+    stmtInstallFolder = db.prepare('SELECT * FROM games WHERE install_folder = ?');
+
     const gameInstallPaths = getSettings().gameInstalls;
     const customDBs = await loadCustomDatabases();
 
     await processGameInstallPaths(gameInstallPaths, stmtInstallFolder, customDBs, games, errors);
-    stmtInstallFolder.finalize();
 
     await processCustomEntriesAfterDatabaseGames(games, errors);
   } catch (error) {
     handleError(error, 'Error updating database', errors);
+  } finally {
+    if (stmtInstallFolder) {
+      await new Promise<void>((resolve) => {
+        try {
+          stmtInstallFolder!.finalize((err) => {
+            if (err) {
+              console.error('[getGameDataFromDB] Error finalizing statement:', err);
+            }
+            resolve();
+          });
+        } catch (e) {
+          console.error('[getGameDataFromDB] Exception during statement finalize:', e);
+          resolve();
+        }
+      });
+    }
+
+    if (db) {
+      await new Promise<void>((resolve) => {
+        try {
+          db!.close((err) => {
+            if (err) {
+              console.error('[getGameDataFromDB] Error closing database:', err);
+            }
+            resolve();
+          });
+        } catch (e) {
+          console.error('[getGameDataFromDB] Exception during db.close():', e);
+          resolve();
+        }
+      });
+    }
   }
 
   return { games, errors };
