@@ -105,13 +105,18 @@ const createMainWindow = async () => {
         minWidth: 1100,
         minHeight: 750,
         icon: getAssetPath("logo.ico"),
-        webPreferences: { preload: path.join(__dirname, "preload.js") },
+        webPreferences: {
+            // devTools: true,
+            preload: path.join(__dirname, "preload.js")
+        },
     }, getRenderPath("html", "index.html"), () => {
         BrowserWindow.getAllWindows().forEach(window => {
             if (window !== mainWindow) window.close();
         });
         if (process.platform !== "darwin") app.quit();
     });
+
+    // mainWindow.webContents.openDevTools();
 
     const menu = Menu.buildFromTemplate(initializeMenu());
     Menu.setApplicationMenu(menu);
@@ -369,7 +374,7 @@ const getSettings = () => appSettings;
 const placeholderMapping = {
     '{{p|username}}': os.userInfo().username,
     '{{p|userprofile}}': process.env.USERPROFILE || os.homedir(),
-    '{{p|userprofile/documents}}': path.join(process.env.USERPROFILE || os.homedir(), 'Documents'),
+    '{{p|userprofile/documents}}': app.getPath('documents'),
     '{{p|userprofile/appdata/locallow}}': path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'LocalLow'),
     '{{p|appdata}}': process.env.APPDATA || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Roaming'),
     '{{p|localappdata}}': process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Local'),

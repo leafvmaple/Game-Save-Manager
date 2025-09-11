@@ -87,8 +87,6 @@ async function resolveTemplatedBackupPath(
         return getGameData().ubisoftPath!;
       case '{{p|uid}}':
         return '{{p|uid}}';
-      case '{{p|userprofile/documents}}':
-        return app.getPath('documents');
       default:
         return placeholderMapping[normalizedMatch] || match;
     }
