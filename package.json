@@ -1,6 +1,6 @@
 {
   "name": "game-save-manager",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Easily backup and restore your game saves anytime",
   "main": "dist-ts/main/main.js",
   "scripts": {
@@ -16,9 +16,9 @@
   "build": {
     "extends": null,
     "icon": "./src/assets/logo.ico",
-    "appId": "com.dyang.game-save-manager",
+    "appId": "com.leafvmaple.game-save-manager",
     "productName": "Game Save Manager",
-    "copyright": "Copyright © 2024-2025 Yongcan Yang, Zohar Lee",
+    "copyright": "Copyright © 2024-2025 Zohar Lee",
     "files": [
       "src/renderer/*",
       "src/types/*",

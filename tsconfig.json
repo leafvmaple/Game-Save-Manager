@@ -23,7 +23,8 @@
       "baseUrl": ".",
       "paths": {
         "*": ["node_modules/*"],
-      }
+      },
+      "sourceMap": true
     },
     "include": ["src/**/*.ts"],
     "exclude": ["node_modules", "dist-ts"]
