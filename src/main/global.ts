@@ -87,7 +87,7 @@ const initializeMenu = () => [
             },
             {
                 label: 'DevTools',
-                click: (_, browserWindow) => {
+                click: (_: any, browserWindow: BrowserWindow | undefined) => {
                     if (browserWindow) {
                         browserWindow.webContents.toggleDevTools();
                     }
@@ -311,7 +311,7 @@ const loadSettings = () => {
         autoAppUpdate: true,
         autoDbUpdate: false,
         gameInstalls: 'uninitialized',
-        pinnedGames: []
+        pinnedGames: [] as string[]
     };
 
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
@@ -366,7 +366,7 @@ const saveSettings = (key: string, value: any) => {
 const getMainWindow = () => mainWindow;
 const getSettingsWindow = () => settingsWindow;
 const getAppStatus = () => appStatus;
-const updateAppStatus = (statusKey: string, statusValue: boolean) => appStatus[statusKey] = statusValue;
+const updateAppStatus = (statusKey: keyof typeof appStatus, statusValue: boolean) => appStatus[statusKey] = statusValue;
 const getCurrentVersion = () => APP_VERSION;
 const getGameDisplayName = (gameObj: any) => appSettings.language === "en_US" ? gameObj.title : (appSettings.language === "zh_CN" ? gameObj.zh_CN || gameObj.title : gameObj.title);
 const getSettings = () => appSettings;

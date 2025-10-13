@@ -1,6 +1,6 @@
 {
   "name": "game-save-manager",
-  "version": "2.0.5",
+  "version": "2.1.0",
   "description": "Easily backup and restore your game saves anytime",
   "main": "dist-ts/main/main.js",
   "scripts": {
@@ -20,7 +20,9 @@
     "productName": "Game Save Manager",
     "copyright": "Copyright © 2024-2025 Zohar Lee",
     "files": [
-      "src/renderer/*",
+      "assets/*",
+      "locales/*",
+      "src/renderer/**/*",
       "src/types/*",
       "dist-ts/**/*",
       "node_modules/**/*"
@@ -49,6 +51,8 @@
     "winreg": "^1.2.5"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/winreg": "^1.2.36",
     "concurrently": "^8.2.2",
     "electron": "^31.3.1",
     "electron-builder": "^24.13.3",

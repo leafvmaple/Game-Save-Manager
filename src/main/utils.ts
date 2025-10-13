@@ -1,53 +1,11 @@
-import { app } from 'electron';
-import fs from 'fs';
 import fsOriginal from 'original-fs';
 import path from 'path';
 import { glob } from 'glob';
 import WinReg from 'winreg';
-import i18next from 'i18next';
 import { getGameData } from './gameData';
-import { getMainWindow, calculateDirectorySize, placeholderMapping, placeholderIdentifier, osKeyMap } from './global';
-
-// Interfaces
-interface Game {
-  title: string;
-  wiki_page_id: string;
-  install_folder: string;
-  steam_id?: number;
-  gog_id?: number;
-  save_location: {
-    win: string[];
-    reg: string[];
-    mac: string[];
-    linux: string[];
-  };
-  platform: string[];
-  zh_CN?: string | null;
-  install_path: string;
-  latest_backup: string;
-  resolved_paths: ResolvedPath[];
-  backup_size: number;
-}
-
-interface ResolvedPath {
-  template: string;
-  resolved: string;
-  uid?: string;
-  type?: 'reg' | 'folder' | 'file';
-}
-
-interface BackupConfig {
-  title: string;
-  zh_CN: string | null;
-  backup_paths: BackupPath[];
-}
-
-interface BackupPath {
-  folder_name: string;
-  template: string;
-  type: 'reg' | 'folder' | 'file';
-  install_folder: string | null;
-}
+import { placeholderMapping, placeholderIdentifier } from './global';
+import type { Game, ResolvedPath } from '../types/game';
+import type { BackupConfig, BackupPath } from '../types/backup';
 
 // Utility Functions
 function getWinRegHive(hive: string): string | null {

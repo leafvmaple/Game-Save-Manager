@@ -9,23 +9,30 @@
       "rootDir": "./src",
       "moduleResolution": "node",
       "resolveJsonModule": true,
-      "noImplicitAny": false,
-      "noImplicitThis": false,
-      "strictNullChecks": false,  // TODO
-      "strict": false, // TODO
-      "strictFunctionTypes": false,  // TODO
-      "strictBindCallApply": false,  // TODO
-      "strictPropertyInitialization": false, // TODO
-      "noImplicitReturns": false,
+      
+      // Type checking - gradually enable these
+      "noImplicitAny": true,
+      "noImplicitThis": true,
+      "strictNullChecks": false,  // TODO: Enable after fixing null checks
+      "strict": false, // TODO: Enable after all other strict checks are passing
+      "strictFunctionTypes": true,
+      "strictBindCallApply": true,
+      "strictPropertyInitialization": false, // TODO: Enable after fixing property initialization
+      "noImplicitReturns": true,
       "noFallthroughCasesInSwitch": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": false, // Keep false to allow unused parameters in callbacks
       "allowJs": true,
 
       "baseUrl": ".",
       "paths": {
         "*": ["node_modules/*"],
+        "@types/*": ["src/types/*"]
       },
-      "sourceMap": true
+      "sourceMap": true,
+      "declaration": true,
+      "declarationMap": true
     },
-    "include": ["src/**/*.ts"],
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
     "exclude": ["node_modules", "dist-ts"]
   }

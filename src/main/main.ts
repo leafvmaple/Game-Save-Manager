@@ -35,7 +35,6 @@ import {
 
 import {
     getGameDataFromDB,
-    getAllGameDataFromDB,
     backupGame,
     updateDatabase
 } from './backup';
@@ -312,8 +311,8 @@ ipcMain.handle('get-status', () => {
     return getAppStatus();
 });
 
-ipcMain.on('update-status', (event, statusKey: string, statusValue: any) => {
-    updateAppStatus(statusKey, statusValue);
+ipcMain.on('update-status', (event, statusKey: string, statusValue: boolean) => {
+    updateAppStatus(statusKey as keyof ReturnType<typeof getAppStatus>, statusValue);
 });
 
 ipcMain.handle('get-current-version', () => {

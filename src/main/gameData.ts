@@ -5,8 +5,10 @@ import vdf from 'vdf-parser';
 import WinReg from 'winreg';
 import yaml from 'js-yaml';
 import os from 'os';
+import type { GameData as IGameData } from '../types/game';
+import type { SteamLoginUsers, SteamLocalConfig, SteamLibraryFolders, UbisoftSettings, BattleNetConfig } from '../types/platform';
 
-interface GameData {
+class GameData implements IGameData {
   steamPath: string | null;
   ubisoftPath: string | null;
   eaPath: string | null;
@@ -18,9 +20,7 @@ interface GameData {
   currentUbisoftUserId: string | null;
   detectedGamePaths: string[];
   detectedSteamGameIds: string[];
-}
 
-class GameData {
   constructor() {
     this.steamPath = null;
     this.ubisoftPath = null;
