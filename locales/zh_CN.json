@@ -19,7 +19,12 @@
         "auto_app_update": "自动检查软件更新",
         "auto_db_update": "自动更新数据库",
         "auto_backup": "自动备份有变化的存档",
-        "auto_backup_interval": "自动备份间隔（分钟）"
+        "auto_backup_interval": "自动备份间隔（分钟）",
+        "excluded_backup_patterns": "备份排除规则",
+        "excluded_backup_patterns_placeholder": "每行一个 glob，例如 **/remotecache.vdf",
+        "backup_size_warning": "备份体积异常时提醒",
+        "backup_size_warning_threshold": "大体积备份阈值（MB）",
+        "backup_size_warning_multiplier": "增长提醒倍数"
     },
     "about": {
         "title": "关于",
@@ -58,7 +63,13 @@
         "total_restore_size": "总还原大小：{{size}}",
         "backup_count": "备份个数",
         "restore_selected": "还原选中的游戏",
-        "update_database": "更新数据库"
+        "update_database": "更新数据库",
+        "backup_status": "状态",
+        "backup_status_new": "新存档",
+        "backup_status_updated": "有变化",
+        "backup_status_unchanged": "无变化",
+        "validate_selected": "验证选中备份",
+        "validation_in_progress": "正在验证备份..."
     },
     "summary": {
         "done": "完成",
@@ -126,6 +137,11 @@
         "missing_database_file_message": "找不到数据库文件，请尝试更新数据库或重新安装应用程序",
         "manually_skipped": "手动跳过",
         "auto_backup_complete": "已自动备份 {{count}} 个游戏",
-        "auto_backup_failed": "{{count}} 个游戏自动备份失败"
+        "auto_backup_failed": "{{count}} 个游戏自动备份失败",
+        "backup_size_large_warning": "本次备份为 {{current_size}}，超过 {{reference_size}} 阈值",
+        "backup_size_growth_warning": "本次备份为 {{current_size}}，明显大于通常的 {{reference_size}}",
+        "backup_validation_success": "备份验证通过",
+        "backup_validation_warning": "备份验证完成，但存在警告",
+        "backup_validation_failed": "备份验证失败"
     }
 }

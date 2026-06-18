@@ -45,6 +45,8 @@ export interface Game {
   latest_backup: string;
   resolved_paths: ResolvedPath[];
   backup_size: number;
+  change_status?: import('./backup').BackupChangeStatus;
+  size_warning?: import('./backup').BackupSizeWarning | null;
 }
 
 /**

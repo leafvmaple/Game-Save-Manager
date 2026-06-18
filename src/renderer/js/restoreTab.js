@@ -139,6 +139,9 @@ function setupRestoreButton() {
     const restoreButton = document.getElementById('restore-button');
     const restoreIcon = document.getElementById('restore-icon');
     const restoreText = document.getElementById('restore-text');
+    const validateButton = document.getElementById('validate-backup-button');
+    const validateIcon = document.getElementById('validate-backup-icon');
+    const validateText = document.getElementById('validate-backup-text');
 
     restoreButton.addEventListener('click', async () => {
         const selectedGames = getSelectedWikiIds('restore');
@@ -169,6 +172,54 @@ function setupRestoreButton() {
         restoreButton.setAttribute('data-i18n', 'main.restore_selected');
         restoreText.textContent = await window.i18n.translate('main.restore_selected');
         window.api.send('update-status', 'restoring', false);
+    });
+
+    validateButton.addEventListener('click', async () => {
+        const selectedGames = getSelectedWikiIds('restore');
+
+        if (validateButton.disabled) return;
+        if (selectedGames.length === 0) {
+            showAlert('warning', await window.i18n.translate('alert.no_games_selected'));
+            return;
+        }
+
+        const start = await operationStartCheck('validate-backup');
+        if (!start) return;
+
+        validateButton.disabled = true;
+        validateButton.classList.add('cursor-not-allowed');
+        validateIcon.classList.remove('fa-shield-halved');
+        validateIcon.innerHTML = spinner;
+        validateButton.setAttribute('data-i18n', 'main.validation_in_progress');
+        validateText.textContent = await window.i18n.translate('main.validation_in_progress');
+
+        const invalidResults = [];
+        const warningResults = [];
+        for (const wikiId of selectedGames) {
+            const gameData = restoreTableDataMap.get(wikiId);
+            const result = await window.api.invoke('validate-backup', gameData);
+            const gameName = gameData.zh_CN || gameData.title || wikiId;
+            if (!result.valid) {
+                invalidResults.push(`${gameName}: ${result.errors.join('; ')}`);
+            } else if (result.warnings.length > 0) {
+                warningResults.push(`${gameName}: ${result.warnings.join('; ')}`);
+            }
+        }
+
+        validateButton.disabled = false;
+        validateButton.classList.remove('cursor-not-allowed');
+        validateIcon.innerHTML = '';
+        validateIcon.classList.add('fa-shield-halved');
+        validateButton.setAttribute('data-i18n', 'main.validate_selected');
+        validateText.textContent = await window.i18n.translate('main.validate_selected');
+
+        if (invalidResults.length > 0) {
+            showAlert('modal', await window.i18n.translate('alert.backup_validation_failed'), invalidResults);
+        } else if (warningResults.length > 0) {
+            showAlert('modal', await window.i18n.translate('alert.backup_validation_warning'), warningResults);
+        } else {
+            showAlert('success', await window.i18n.translate('alert.backup_validation_success'));
+        }
     });
 }
 

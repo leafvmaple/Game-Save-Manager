@@ -131,7 +131,7 @@ const initializeMenu = (): MenuItemConstructorOptions[] => [
                     if (!settingsWindow || settingsWindow.isDestroyed()) {
                         settingsWindow = createWindow({
                             width: 650,
-                            height: 760,
+                            height: 900,
                             minWidth: 650,
                             minHeight: 760,
                             icon: getAssetPath("setting.ico"),
@@ -392,6 +392,10 @@ const loadSettings = () => {
         autoDbUpdate: false,
         autoBackupEnabled: false,
         autoBackupInterval: 30,
+        excludedBackupPatterns: [] as string[],
+        backupSizeWarningEnabled: true,
+        backupSizeWarningThresholdMb: 1024,
+        backupSizeWarningMultiplier: 3,
         gameInstalls: 'uninitialized',
         pinnedGames: [] as string[]
     };
@@ -425,6 +429,11 @@ const saveSettings = (key: string, value: any) => {
                         BrowserWindow.getAllWindows().forEach(window => window.webContents.send('apply-theme', value));
                     }
                     if (key === 'gameInstalls') {
+                        if (mainWindow) {
+                            mainWindow.webContents.send('update-backup-table');
+                        }
+                    }
+                    if (['excludedBackupPatterns', 'backupSizeWarningEnabled', 'backupSizeWarningThresholdMb', 'backupSizeWarningMultiplier'].includes(key)) {
                         if (mainWindow) {
                             mainWindow.webContents.send('update-backup-table');
                         }

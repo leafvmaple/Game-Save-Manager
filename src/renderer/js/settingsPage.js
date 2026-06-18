@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const autoDbUpdateCheckbox = document.getElementById('auto-db-update');
     const autoBackupEnabledCheckbox = document.getElementById('auto-backup-enabled');
     const autoBackupIntervalInput = document.getElementById('auto-backup-interval');
+    const excludedBackupPatternsInput = document.getElementById('excluded-backup-patterns');
+    const backupSizeWarningEnabledCheckbox = document.getElementById('backup-size-warning-enabled');
+    const backupSizeWarningThresholdInput = document.getElementById('backup-size-warning-threshold');
+    const backupSizeWarningMultiplierInput = document.getElementById('backup-size-warning-multiplier');
     const autoDetectButton = document.getElementById('auto-detect-paths');
     const gamePathsContainer = document.getElementById('game-paths-container');
     const addNewPathButton = document.getElementById('add-new-path');
@@ -25,7 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
             autoDbUpdateCheckbox.checked = settings.autoDbUpdate;
             autoBackupEnabledCheckbox.checked = settings.autoBackupEnabled === true;
             autoBackupIntervalInput.value = settings.autoBackupInterval || 30;
+            excludedBackupPatternsInput.value = Array.isArray(settings.excludedBackupPatterns)
+                ? settings.excludedBackupPatterns.join('\n')
+                : '';
+            backupSizeWarningEnabledCheckbox.checked = settings.backupSizeWarningEnabled !== false;
+            backupSizeWarningThresholdInput.value = settings.backupSizeWarningThresholdMb || 1024;
+            backupSizeWarningMultiplierInput.value = settings.backupSizeWarningMultiplier || 3;
             updateAutoBackupIntervalState();
+            updateBackupSizeWarningState();
 
             if (Array.isArray(settings.gameInstalls) && settings.gameInstalls.length > 0) {
                 settings.gameInstalls.forEach((installPath) => {
@@ -62,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     autoBackupEnabledCheckbox.addEventListener('change', updateAutoBackupIntervalState);
+    backupSizeWarningEnabledCheckbox.addEventListener('change', updateBackupSizeWarningState);
 
     autoBackupIntervalInput.addEventListener('input', function () {
         const value = parseInt(this.value, 10);
@@ -69,6 +81,24 @@ document.addEventListener('DOMContentLoaded', () => {
             this.value = autoBackupMinInterval;
         } else if (value > autoBackupMaxInterval) {
             this.value = autoBackupMaxInterval;
+        }
+    });
+
+    backupSizeWarningThresholdInput.addEventListener('input', function () {
+        const value = parseInt(this.value, 10);
+        if (isNaN(value) || value < 1) {
+            this.value = 1;
+        } else if (value > 102400) {
+            this.value = 102400;
+        }
+    });
+
+    backupSizeWarningMultiplierInput.addEventListener('input', function () {
+        const value = parseFloat(this.value);
+        if (isNaN(value) || value < 1) {
+            this.value = 1;
+        } else if (value > 100) {
+            this.value = 100;
         }
     });
 
@@ -112,6 +142,13 @@ document.addEventListener('DOMContentLoaded', () => {
             window.api.send('save-settings', 'autoDbUpdate', autoDbUpdateCheckbox.checked);
             window.api.send('save-settings', 'autoBackupEnabled', autoBackupEnabledCheckbox.checked);
             window.api.send('save-settings', 'autoBackupInterval', autoBackupIntervalInput.value);
+            window.api.send('save-settings', 'excludedBackupPatterns', excludedBackupPatternsInput.value
+                .split(/\r?\n/)
+                .map(pattern => pattern.trim())
+                .filter(Boolean));
+            window.api.send('save-settings', 'backupSizeWarningEnabled', backupSizeWarningEnabledCheckbox.checked);
+            window.api.send('save-settings', 'backupSizeWarningThresholdMb', backupSizeWarningThresholdInput.value);
+            window.api.send('save-settings', 'backupSizeWarningMultiplier', backupSizeWarningMultiplierInput.value);
             showAlert('success', await window.i18n.translate('settings.save-settings-success'));
         }
     });
@@ -198,6 +235,15 @@ document.addEventListener('DOMContentLoaded', () => {
         autoBackupIntervalInput.disabled = !autoBackupEnabledCheckbox.checked;
         autoBackupIntervalInput.classList.toggle('opacity-50', !autoBackupEnabledCheckbox.checked);
         autoBackupIntervalInput.classList.toggle('cursor-not-allowed', !autoBackupEnabledCheckbox.checked);
+    }
+
+    function updateBackupSizeWarningState() {
+        const disabled = !backupSizeWarningEnabledCheckbox.checked;
+        [backupSizeWarningThresholdInput, backupSizeWarningMultiplierInput].forEach((input) => {
+            input.disabled = disabled;
+            input.classList.toggle('opacity-50', disabled);
+            input.classList.toggle('cursor-not-allowed', disabled);
+        });
     }
 });
 

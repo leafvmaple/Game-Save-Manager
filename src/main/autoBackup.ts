@@ -1,22 +1,21 @@
-import fsOriginal from 'original-fs';
 import i18next from 'i18next';
-import moment from 'moment';
-import path from 'path';
-import type { Dirent } from 'fs';
 
 import { backupGame, getGameDataFromDB } from './backup';
+import {
+  getLatestBackupDate,
+  getLatestResolvedPathMTime,
+  shouldAutoBackupGame,
+} from './backupMetadata';
 import {
   getAppStatus,
   getMainWindow,
   getSettings,
   updateAppStatus,
 } from './global';
-import type { Game, ResolvedPath } from '../types/game';
 
 const DEFAULT_AUTO_BACKUP_INTERVAL_MINUTES = 30;
 const MIN_AUTO_BACKUP_INTERVAL_MINUTES = 5;
 const MAX_AUTO_BACKUP_INTERVAL_MINUTES = 1440;
-const BACKUP_FOLDER_FORMAT = 'YYYY-MM-DD_HH-mm';
 
 let autoBackupIntervalTimer: ReturnType<typeof setInterval> | null = null;
 let autoBackupStartupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -38,83 +37,6 @@ function sanitizeAutoBackupInterval(value: unknown): number {
     Math.max(interval, MIN_AUTO_BACKUP_INTERVAL_MINUTES),
     MAX_AUTO_BACKUP_INTERVAL_MINUTES
   );
-}
-
-function getLatestBackupDate(wikiPageId: string, backupRoot = getSettings().backupPath): Date | null {
-  const gameBackupPath = path.join(backupRoot, wikiPageId.toString());
-  if (!fsOriginal.existsSync(gameBackupPath)) {
-    return null;
-  }
-
-  let latestBackupDate: Date | null = null;
-  let backupEntries: Dirent[];
-  try {
-    backupEntries = fsOriginal.readdirSync(gameBackupPath, { withFileTypes: true });
-  } catch (error) {
-    console.warn(`Failed to inspect backup directory: ${gameBackupPath}`, error);
-    return null;
-  }
-
-  for (const entry of backupEntries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
-    try {
-      const parsedDate = moment(entry.name, BACKUP_FOLDER_FORMAT, true);
-      if (!parsedDate.isValid()) {
-        continue;
-      }
-
-      const backupConfigPath = path.join(gameBackupPath, entry.name, 'backup_info.json');
-      const backupDate = fsOriginal.existsSync(backupConfigPath)
-        ? new Date(Math.max(parsedDate.toDate().getTime(), fsOriginal.statSync(backupConfigPath).mtime.getTime()))
-        : parsedDate.toDate();
-
-      if (!latestBackupDate || backupDate.getTime() > latestBackupDate.getTime()) {
-        latestBackupDate = backupDate;
-      }
-    } catch (error) {
-      console.warn(`Failed to inspect backup entry: ${path.join(gameBackupPath, entry.name)}`, error);
-    }
-  }
-
-  return latestBackupDate;
-}
-
-function getLatestResolvedPathMTime(resolvedPaths: ResolvedPath[]): Date | null {
-  let latestMTime: Date | null = null;
-
-  for (const resolvedPath of resolvedPaths) {
-    if (resolvedPath.type === 'reg') {
-      continue;
-    }
-
-    const pathMTime = getLatestPathMTime(resolvedPath.resolved);
-    if (pathMTime && (!latestMTime || pathMTime.getTime() > latestMTime.getTime())) {
-      latestMTime = pathMTime;
-    }
-  }
-
-  return latestMTime;
-}
-
-function shouldAutoBackupGame(game: Game, backupRoot = getSettings().backupPath): boolean {
-  if (!game.resolved_paths || game.resolved_paths.length === 0) {
-    return false;
-  }
-
-  const latestBackupDate = getLatestBackupDate(game.wiki_page_id, backupRoot);
-  if (!latestBackupDate) {
-    return true;
-  }
-
-  const latestSaveMTime = getLatestResolvedPathMTime(game.resolved_paths);
-  if (!latestSaveMTime) {
-    return false;
-  }
-
-  return latestSaveMTime.getTime() > latestBackupDate.getTime();
 }
 
 async function runAutoBackup(): Promise<AutoBackupResult> {
@@ -207,33 +129,6 @@ function stopAutoBackupScheduler(): void {
   if (autoBackupIntervalTimer) {
     clearInterval(autoBackupIntervalTimer);
     autoBackupIntervalTimer = null;
-  }
-}
-
-function getLatestPathMTime(targetPath: string): Date | null {
-  try {
-    if (!targetPath || !fsOriginal.existsSync(targetPath)) {
-      return null;
-    }
-
-    const stats = fsOriginal.lstatSync(targetPath);
-    let latestMTime = stats.mtime;
-
-    if (!stats.isDirectory() || stats.isSymbolicLink()) {
-      return latestMTime;
-    }
-
-    for (const child of fsOriginal.readdirSync(targetPath)) {
-      const childMTime = getLatestPathMTime(path.join(targetPath, child));
-      if (childMTime && childMTime.getTime() > latestMTime.getTime()) {
-        latestMTime = childMTime;
-      }
-    }
-
-    return latestMTime;
-  } catch (error) {
-    console.warn(`Failed to inspect auto backup path: ${targetPath}`, error);
-    return null;
   }
 }
 

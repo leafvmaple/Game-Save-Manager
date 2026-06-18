@@ -19,7 +19,12 @@
         "auto_app_update": "Check software update automatically",
         "auto_db_update": "Update database automatically",
         "auto_backup": "Backup changed saves automatically",
-        "auto_backup_interval": "Auto Backup Interval (minutes)"
+        "auto_backup_interval": "Auto Backup Interval (minutes)",
+        "excluded_backup_patterns": "Excluded Backup Patterns",
+        "excluded_backup_patterns_placeholder": "One glob per line, for example **/remotecache.vdf",
+        "backup_size_warning": "Warn about unusually large backups",
+        "backup_size_warning_threshold": "Large Backup Threshold (MB)",
+        "backup_size_warning_multiplier": "Growth Warning Multiplier"
     },
     "about": {
         "title": "About",
@@ -58,7 +63,13 @@
         "total_restore_size": "Total restore size: {{size}}",
         "backup_count": "Number of Backups",
         "restore_selected": "Restore Selected Games",
-        "update_database": "Update Database"
+        "update_database": "Update Database",
+        "backup_status": "Status",
+        "backup_status_new": "New",
+        "backup_status_updated": "Updated",
+        "backup_status_unchanged": "Unchanged",
+        "validate_selected": "Validate Selected Backups",
+        "validation_in_progress": "Validating backups..."
     },
     "summary": {
         "done": "Done",
@@ -126,6 +137,11 @@
         "missing_database_file_message": "Could not find database file, please try updating database or reinstalling the application",
         "manually_skipped": "Manually skipped",
         "auto_backup_complete": "Automatic backup completed for {{count}} game(s)",
-        "auto_backup_failed": "Automatic backup failed for {{count}} game(s)"
+        "auto_backup_failed": "Automatic backup failed for {{count}} game(s)",
+        "backup_size_large_warning": "This backup is {{current_size}}, above your {{reference_size}} threshold",
+        "backup_size_growth_warning": "This backup is {{current_size}}, much larger than the usual {{reference_size}}",
+        "backup_validation_success": "Backup validation passed",
+        "backup_validation_warning": "Backup validation completed with warnings",
+        "backup_validation_failed": "Backup validation failed"
     }
 }

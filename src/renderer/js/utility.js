@@ -233,6 +233,12 @@ async function operationStartCheck(operation) {
         'update-db': {
             backuping: 'alert.wait_for_backup',
             auto_backuping: 'alert.wait_for_backup',
+        },
+        'validate-backup': {
+            backuping: 'alert.wait_for_backup',
+            auto_backuping: 'alert.wait_for_backup',
+            restoring: 'alert.wait_for_restore',
+            migrating: 'alert.wait_for_migrate',
         }
     };
 

@@ -57,8 +57,8 @@ async function populateBackupTable(data, iconMap) {
     );
 
     // Append rows to the table body
-    const appendRowsToTable = (games, isPinned) => {
-        games.forEach((game) => {
+    const appendRowsToTable = async (games, isPinned) => {
+        for (const game of games) {
             const wikiId = game.wiki_page_id;
             backupTableDataMap.set(wikiId, game);
 
@@ -67,14 +67,17 @@ async function populateBackupTable(data, iconMap) {
                 gameTitle = game.zh_CN;
             }
             if (!gameTitle) {
-                return;
+                continue;
             }
 
             const sortedPlatforms = platformOrder.filter(platform => game.platform.includes(platform));
             const platformIcons = sortedPlatforms.map(platform => getPlatformIcon(platform, iconMap)).join(' ');
             const backupSize = formatSize(game.backup_size);
+            const changeStatus = game.change_status || 'unchanged';
+            const statusText = await window.i18n.translate(`main.backup_status_${changeStatus}`);
+            const sizeWarningText = await getSizeWarningText(game.size_warning);
 
-            let row = createBackupTableRow(gameTitle, platformIcons, backupSize, game.latest_backup, game.wiki_page_id);
+            let row = createBackupTableRow(gameTitle, platformIcons, backupSize, statusText, changeStatus, sizeWarningText, game.latest_backup, game.wiki_page_id);
 
             // Check if selected
             if (selectedWikiIds.includes(wikiId)) {
@@ -90,23 +93,33 @@ async function populateBackupTable(data, iconMap) {
             }
 
             tableBody.appendChild(row);
-        });
+        }
     };
 
-    appendRowsToTable(pinnedGames, true);
-    appendRowsToTable(otherGames, false);
+    await appendRowsToTable(pinnedGames, true);
+    await appendRowsToTable(otherGames, false);
 
     setupSelectAllCheckbox('backup', selectAllCheckbox);
 }
 
 // Function to create a backup table row
-function createBackupTableRow(gameTitle, platformIcons, backupSize, newestBackupTime, wikiPageId) {
+function createBackupTableRow(gameTitle, platformIcons, backupSize, statusText, changeStatus, sizeWarningText, newestBackupTime, wikiPageId) {
     const row = document.createElement('tr');
     row.setAttribute('data-wiki-id', wikiPageId);
     row.classList.add('bg-white', 'border-b', 'dark:bg-gray-800', 'dark:border-gray-700', 'hover:bg-gray-50', 'dark:hover:bg-gray-600');
     const escapedGameTitle = escapeHtml(gameTitle);
     const escapedBackupSize = escapeHtml(backupSize);
+    const escapedStatusText = escapeHtml(statusText);
+    const escapedSizeWarningText = escapeAttribute(sizeWarningText || '');
     const escapedNewestBackupTime = escapeHtml(newestBackupTime);
+    const statusClasses = {
+        new: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        updated: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        unchanged: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+    };
+    const sizeWarningIcon = sizeWarningText
+        ? `<i class="fa-solid fa-triangle-exclamation ml-2 text-yellow-500" title="${escapedSizeWarningText}"></i>`
+        : '';
     row.innerHTML = `
         <td class="w-4 py-4 pl-4">
             <div class="flex items-center">
@@ -121,7 +134,12 @@ function createBackupTableRow(gameTitle, platformIcons, backupSize, newestBackup
             ${platformIcons}
         </td>
         <td class="px-6 py-4 truncate">
-            ${escapedBackupSize}
+            ${escapedBackupSize}${sizeWarningIcon}
+        </td>
+        <td class="px-6 py-4 truncate">
+            <span class="px-2 py-1 rounded text-xs font-medium ${statusClasses[changeStatus] || statusClasses.unchanged}">
+                ${escapedStatusText}
+            </span>
         </td>
         <td class="px-6 py-4 truncate newest-backup-time">
             ${escapedNewestBackupTime}
@@ -137,6 +155,19 @@ function createBackupTableRow(gameTitle, platformIcons, backupSize, newestBackup
         </td>
     `;
     return row;
+}
+
+async function getSizeWarningText(sizeWarning) {
+    if (!sizeWarning) {
+        return '';
+    }
+    const key = sizeWarning.type === 'growth'
+        ? 'alert.backup_size_growth_warning'
+        : 'alert.backup_size_large_warning';
+    return await window.i18n.translate(key, {
+        current_size: formatSize(sizeWarning.current_size),
+        reference_size: formatSize(sizeWarning.reference_size)
+    });
 }
 
 function setupBackupTabButtons() {
@@ -163,9 +194,7 @@ function setupBackupTabButtons() {
         backupText.textContent = await window.i18n.translate('main.backup_in_progress');
 
         await performBackup();
-        selectedGames.forEach(async wikiId => {
-            await updateNewestBackupTime('backup', wikiId);
-        });
+        await updateBackupTable(false);
         document.querySelector('#backup-summary-done').classList.remove('hidden');
 
         // Re-enable the button and revert to the original state

@@ -17,13 +17,20 @@ import WinReg from 'winreg';
 import {
   getMainWindow,
   getGameDisplayName,
-  calculateDirectorySize,
   ensureWritable,
   getNewestBackup,
-  copyFolder,
   osKeyMap,
   getSettings,
 } from './global';
+
+import {
+  applyBackupAnalysis,
+  calculateBackupSourceSize,
+  collectSourceManifest,
+  copyDirectoryWithExclusions,
+  getBackupExclusionPatterns,
+  shouldExcludePath,
+} from './backupMetadata';
 
 import {
   Game,
@@ -326,7 +333,7 @@ async function processGame(db_game_row: Game): Promise<Game> {
   db_game_row.resolved_paths = resolved_paths;
   db_game_row.backup_size = totalBackupSize;
 
-  return db_game_row;
+  return applyBackupAnalysis(db_game_row);
 }
 
 async function processFilePaths(db_game_row: Game, osKey: string, resolved_paths: ResolvedPath[]): Promise<number> {
@@ -347,11 +354,12 @@ async function processFilePaths(db_game_row: Game, osKey: string, resolved_paths
 
 async function processWildcardPaths(resolvedPath: { path: string; uid?: string }, templatedPath: string, resolved_paths: ResolvedPath[]): Promise<number> {
   let totalBackupSize = 0;
+  const exclusionPatterns = getBackupExclusionPatterns();
   const files = globSync(resolvedPath.path.replace(/\\/g, '/'));
 
   for (const filePath of files) {
-    if (fsOriginal.existsSync(filePath)) {
-      totalBackupSize += calculateDirectorySize(filePath);
+    if (fsOriginal.existsSync(filePath) && !shouldExcludePath(filePath, exclusionPatterns)) {
+      totalBackupSize += calculateBackupSourceSize(filePath, exclusionPatterns);
       resolved_paths.push({
         template: templatedPath,
         resolved: path.normalize(filePath),
@@ -365,9 +373,10 @@ async function processWildcardPaths(resolvedPath: { path: string; uid?: string }
 
 async function processSinglePath(resolvedPath: { path: string; uid?: string }, templatedPath: string, resolved_paths: ResolvedPath[]): Promise<number> {
   let totalBackupSize = 0;
+  const exclusionPatterns = getBackupExclusionPatterns();
 
-  if (fsOriginal.existsSync(resolvedPath.path)) {
-    totalBackupSize += calculateDirectorySize(resolvedPath.path);
+  if (fsOriginal.existsSync(resolvedPath.path) && !shouldExcludePath(resolvedPath.path, exclusionPatterns)) {
+    totalBackupSize += calculateBackupSourceSize(resolvedPath.path, exclusionPatterns);
     resolved_paths.push({
       template: templatedPath,
       resolved: path.normalize(resolvedPath.path),
@@ -455,8 +464,12 @@ async function backupGame(gameObj: Game): Promise<string | null> {
 
 function createBackupConfig(gameObj: Game): BackupConfig {
   return {
+    schema_version: 2,
+    created_at: new Date().toISOString(),
     title: gameObj.title,
     zh_CN: gameObj.zh_CN || null,
+    zh_TW: gameObj.zh_TW || null,
+    backup_total_size: 0,
     backup_paths: [],
   };
 }
@@ -471,21 +484,39 @@ async function backupRegistry(resolvedPath: string, targetPath: string, backupCo
     template: resolvedPathObj.template,
     type: 'reg',
     install_folder: gameObj.install_folder || null,
+    source_path: resolvedPath,
+    backup_size: fsOriginal.existsSync(registryFilePath) ? fsOriginal.statSync(registryFilePath).size : 0,
+    files: fsOriginal.existsSync(registryFilePath)
+      ? [{
+        relative_path: 'registry_backup.reg',
+        type: 'file',
+        size: fsOriginal.statSync(registryFilePath).size,
+        mtime_ms: fsOriginal.statSync(registryFilePath).mtimeMs,
+      }]
+      : [],
+    excluded: [],
   });
+
+  backupConfig.backup_total_size = (backupConfig.backup_total_size || 0)
+    + (fsOriginal.existsSync(registryFilePath) ? fsOriginal.statSync(registryFilePath).size : 0);
 }
 
 async function backupFileOrDirectory(resolvedPath: string, targetPath: string, backupConfig: BackupConfig, pathFolderName: string, resolvedPathObj: ResolvedPath, gameObj: Game) {
   let dataType: 'folder' | 'file' | null = null;
+  const exclusionPatterns = getBackupExclusionPatterns();
+  const manifest = collectSourceManifest(resolvedPath, exclusionPatterns);
   ensureWritable(resolvedPath);
   const stats = fsOriginal.statSync(resolvedPath);
 
   if (stats.isDirectory()) {
     dataType = 'folder';
-    copyFolder(resolvedPath, targetPath);
+    copyDirectoryWithExclusions(resolvedPath, targetPath, exclusionPatterns);
   } else {
     dataType = 'file';
     const targetFilePath = path.join(targetPath, path.basename(resolvedPath));
-    fsOriginal.copyFileSync(resolvedPath, targetFilePath);
+    if (!shouldExcludePath(resolvedPath, exclusionPatterns)) {
+      fsOriginal.copyFileSync(resolvedPath, targetFilePath);
+    }
   }
 
   backupConfig.backup_paths.push({
@@ -493,7 +524,12 @@ async function backupFileOrDirectory(resolvedPath: string, targetPath: string, b
     template: finalizeTemplate(resolvedPathObj.template, resolvedPathObj.resolved, resolvedPathObj.uid, gameObj.install_path),
     type: dataType,
     install_folder: gameObj.install_folder || null,
+    source_path: resolvedPath,
+    backup_size: manifest.size,
+    files: manifest.files,
+    excluded: manifest.excluded,
   });
+  backupConfig.backup_total_size = (backupConfig.backup_total_size || 0) + manifest.size;
 }
 
 async function saveBackupConfig(backupInstancePath: string, backupConfig: BackupConfig) {

@@ -25,6 +25,10 @@ export interface AppSettings {
   autoDbUpdate: boolean;
   autoBackupEnabled: boolean;
   autoBackupInterval: number;
+  excludedBackupPatterns: string[];
+  backupSizeWarningEnabled: boolean;
+  backupSizeWarningThresholdMb: number;
+  backupSizeWarningMultiplier: number;
   pinnedGames: string[];
   compressionEnabled?: boolean;
 }

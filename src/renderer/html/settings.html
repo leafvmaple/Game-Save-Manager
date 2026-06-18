@@ -92,6 +92,36 @@
             class="mb-4 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
             min="5" max="1440" />
 
+        <!-- Exclusion patterns -->
+        <label for="excluded-backup-patterns" data-i18n="settings.excluded_backup_patterns"
+            class="block mb-1 text-sm font-medium text-gray-900 dark:text-white">
+            <span class="text-content">Excluded Backup Patterns</span>
+        </label>
+        <textarea id="excluded-backup-patterns" rows="4" data-i18n-placeholder="settings.excluded_backup_patterns_placeholder"
+            class="mb-4 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
+
+        <!-- Backup size warning -->
+        <div class="flex items-center mb-4" data-i18n="settings.backup_size_warning">
+            <input id="backup-size-warning-enabled" type="checkbox" value="" class="w-4 h-4 text-blue-600 bg-gray-100 rounded dark:ring-offset-gray-800 dark:bg-gray-700">
+            <label for="backup-size-warning-enabled" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300 text-content">Warn about unusually large backups</label>
+        </div>
+
+        <label for="backup-size-warning-threshold" data-i18n="settings.backup_size_warning_threshold"
+            class="block mb-1 text-sm font-medium text-gray-900 dark:text-white">
+            <span class="text-content">Large Backup Threshold (MB)</span>
+        </label>
+        <input type="number" id="backup-size-warning-threshold"
+            class="mb-4 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            min="1" max="102400" />
+
+        <label for="backup-size-warning-multiplier" data-i18n="settings.backup_size_warning_multiplier"
+            class="block mb-1 text-sm font-medium text-gray-900 dark:text-white">
+            <span class="text-content">Growth Warning Multiplier</span>
+        </label>
+        <input type="number" id="backup-size-warning-multiplier"
+            class="mb-4 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            min="1" max="100" step="0.5" />
+
         <!-- Game Install Locations -->
         <fieldset class="border border-gray-300 dark:border-gray-600 rounded-lg p-4">
             <legend data-i18n="settings.installLocs" class="text-sm font-medium text-gray-900 dark:text-white">

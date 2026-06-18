@@ -4,7 +4,7 @@
  */
 
 import { Game } from './game';
-import { RestoreResult } from './backup';
+import { BackupValidationResult, RestoreResult } from './backup';
 import { AppSettings, SettingsKey, SettingsValue } from './settings';
 import { AppStatus } from './common';
 
@@ -35,6 +35,7 @@ export type IpcChannel =
   | 'backup-game'
   | 'fetch-restore-table-data'
   | 'restore-game'
+  | 'validate-backup'
   | 'migrate-backups'
   | 'get-status'
   | 'update-status'
@@ -77,6 +78,7 @@ export interface IpcApi {
   invoke(channel: 'backup-game', gameObj: any): Promise<string | null>;
   invoke(channel: 'fetch-restore-table-data'): Promise<Game[]>;
   invoke(channel: 'restore-game', gameObj: any, userActionForAll: any): Promise<RestoreResult>;
+  invoke(channel: 'validate-backup', gameObj: any): Promise<BackupValidationResult>;
   invoke(channel: 'get-status'): Promise<AppStatus>;
   invoke(channel: 'get-current-version'): Promise<string>;
   invoke(channel: 'get-latest-version'): Promise<string | null>;

@@ -19,7 +19,12 @@
         "auto_app_update": "自動檢查軟體更新",
         "auto_db_update": "自動更新資料庫",
         "auto_backup": "自動備份有變更的存檔",
-        "auto_backup_interval": "自動備份間隔（分鐘）"
+        "auto_backup_interval": "自動備份間隔（分鐘）",
+        "excluded_backup_patterns": "備份排除規則",
+        "excluded_backup_patterns_placeholder": "每行一個 glob，例如 **/remotecache.vdf",
+        "backup_size_warning": "備份大小異常時提醒",
+        "backup_size_warning_threshold": "大容量備份閾值（MB）",
+        "backup_size_warning_multiplier": "增長提醒倍數"
     },
     "about": {
         "title": "關於",
@@ -58,7 +63,13 @@
         "total_restore_size": "總還原大小：{{size}}",
         "backup_count": "備份個數",
         "restore_selected": "還原選中的遊戲",
-        "update_database": "更新資料庫"
+        "update_database": "更新資料庫",
+        "backup_status": "狀態",
+        "backup_status_new": "新存檔",
+        "backup_status_updated": "有變更",
+        "backup_status_unchanged": "無變更",
+        "validate_selected": "驗證選中備份",
+        "validation_in_progress": "正在驗證備份..."
     },
     "summary": {
         "done": "完成",
@@ -126,6 +137,11 @@
         "missing_database_file_message": "找不到資料庫文件，請嘗試更新資料庫或重新安裝應用程式",
         "manually_skipped": "手動跳過",
         "auto_backup_complete": "已自動備份 {{count}} 個遊戲",
-        "auto_backup_failed": "{{count}} 個遊戲自動備份失敗"
+        "auto_backup_failed": "{{count}} 個遊戲自動備份失敗",
+        "backup_size_large_warning": "本次備份為 {{current_size}}，超過 {{reference_size}} 閾值",
+        "backup_size_growth_warning": "本次備份為 {{current_size}}，明顯大於通常的 {{reference_size}}",
+        "backup_validation_success": "備份驗證通過",
+        "backup_validation_warning": "備份驗證完成，但存在警告",
+        "backup_validation_failed": "備份驗證失敗"
     }
 }

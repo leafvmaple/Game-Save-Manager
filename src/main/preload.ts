@@ -36,6 +36,7 @@ const invokeChannels = new Set([
   'backup-game',
   'fetch-restore-table-data',
   'restore-game',
+  'validate-backup',
   'get-status',
   'get-current-version',
   'get-latest-version',

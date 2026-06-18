@@ -52,6 +52,10 @@ import {
     stopAutoBackupScheduler
 } from './autoBackup';
 
+import {
+    validateLatestBackupForGame
+} from './backupMetadata';
+
 app.commandLine.appendSwitch("lang", "en");
 
 type SettingsKey =
@@ -63,6 +67,10 @@ type SettingsKey =
     | 'autoDbUpdate'
     | 'autoBackupEnabled'
     | 'autoBackupInterval'
+    | 'excludedBackupPatterns'
+    | 'backupSizeWarningEnabled'
+    | 'backupSizeWarningThresholdMb'
+    | 'backupSizeWarningMultiplier'
     | 'gameInstalls'
     | 'pinnedGames';
 
@@ -91,6 +99,24 @@ const sanitizeSettingsValue = (key: string, value: unknown): [SettingsKey, any] 
             return typeof value === 'boolean' ? [key, value] : null;
         case 'autoBackupInterval':
             return [key, sanitizeAutoBackupInterval(value)];
+        case 'excludedBackupPatterns':
+            if (!Array.isArray(value)) return null;
+            return [key, value
+                .map(item => String(item).trim())
+                .filter(item => item.length > 0 && item.length <= 500)
+                .slice(0, 200)];
+        case 'backupSizeWarningEnabled':
+            return typeof value === 'boolean' ? [key, value] : null;
+        case 'backupSizeWarningThresholdMb': {
+            const thresholdMb = Number.parseInt(String(value), 10);
+            if (!Number.isFinite(thresholdMb)) return null;
+            return [key, Math.min(Math.max(thresholdMb, 1), 102400)];
+        }
+        case 'backupSizeWarningMultiplier': {
+            const multiplier = Number.parseFloat(String(value));
+            if (!Number.isFinite(multiplier)) return null;
+            return [key, Math.min(Math.max(multiplier, 1), 100)];
+        }
         case 'gameInstalls':
             if (!Array.isArray(value)) return null;
             return [key, value.filter(item => typeof item === 'string' && path.isAbsolute(item))];
@@ -387,6 +413,20 @@ ipcMain.handle('restore-game', async (event, gameObj: any, userActionForAll: any
         return { action: null, error: i18next.t('alert.restore_process_error_display') };
     }
     return await restoreGame(gameObj, userActionForAll);
+});
+
+ipcMain.handle('validate-backup', async (event, gameObj: any) => {
+    if (!gameObj || !isSafeId(String(gameObj.wiki_page_id))) {
+        return {
+            valid: false,
+            backup_path: '',
+            checked_files: 0,
+            missing_files: 0,
+            errors: [i18next.t('alert.restore_process_error_display')],
+            warnings: [],
+        };
+    }
+    return await validateLatestBackupForGame(gameObj);
 });
 
 ipcMain.on('migrate-backups', (event, newBackupPath: string) => {

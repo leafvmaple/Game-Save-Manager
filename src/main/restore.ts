@@ -9,6 +9,7 @@ import moment from 'moment';
 
 import { getGameData } from './gameData';
 import { getGameDisplayName, calculateDirectorySize, ensureWritable, copyFolder, placeholderMapping, getSettings } from './global';
+import { validateBackupInstance } from './backupMetadata';
 
 const execPromise = util.promisify(exec);
 
@@ -121,6 +122,10 @@ async function restoreGame(gameObj: Game, userActionForAll: string | null): Prom
         // Find the latest backup folder based on the backup date
         const latestBackupFolder = gameObj.backups.sort((a, b) => b.date.localeCompare(a.date))[0];
         const latestBackupPath = path.join(gameBackupPath, latestBackupFolder.date);
+        const validationResult = await validateBackupInstance(latestBackupPath);
+        if (!validationResult.valid) {
+            throw Error(`${i18next.t('alert.backup_validation_failed')}: ${validationResult.errors.join('; ')}`);
+        }
 
         for (const backupPath of latestBackupFolder.backup_paths) {
             const sourcePath = path.join(latestBackupPath, backupPath.folder_name);
