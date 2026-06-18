@@ -1,8 +1,9 @@
-import { BrowserWindow, Menu, Notification, app, BrowserWindowConstructorOptions } from 'electron';
+import { BrowserWindow, Menu, Notification, app, BrowserWindowConstructorOptions, MenuItemConstructorOptions, shell } from 'electron';
 import fs from 'fs';
 import fsOriginal from 'original-fs';
 import os from 'os';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import fse from 'fs-extra';
 import i18next from 'i18next';
 import moment from 'moment';
@@ -15,23 +16,98 @@ let aboutWindow: BrowserWindow | null = null;
 let appSettings: any;
 let writeQueue = Promise.resolve();
 
-const APP_VERSION = "2.0.4";
 const UPDATE_URL = "https://api.github.com/repos/dyang886/Game-Save-Manager/releases/latest";
 
 let appStatus = {
-    isBackingUp: false,
-    isRestoring: false,
-    isMigrating: false,
-    isUpdatingDb: false
+    backuping: false,
+    restoring: false,
+    migrating: false,
+    updating_db: false
 };
+
+type AppStatusKey = keyof typeof appStatus;
 
 // Helper Functions
 const createWindow = (options: BrowserWindowConstructorOptions, filePath: string, onClose: () => void): BrowserWindow => {
-    const window = new BrowserWindow(options);
+    const initialFileUrl = pathToFileURL(filePath).toString();
+    const window = new BrowserWindow({
+        ...options,
+        webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true,
+            webSecurity: true,
+            allowRunningInsecureContent: false,
+            devTools: !app.isPackaged,
+            ...options.webPreferences,
+        },
+    });
     window.setMenuBarVisibility(false);
+    window.webContents.setWindowOpenHandler(({ url }) => {
+        openAllowedExternalUrl(url);
+        return { action: 'deny' };
+    });
+    window.webContents.on('will-attach-webview', (event) => {
+        event.preventDefault();
+    });
+    window.webContents.on('will-navigate', (event, navigationUrl) => {
+        if (navigationUrl !== initialFileUrl) {
+            event.preventDefault();
+        }
+    });
     window.loadFile(filePath);
     window.on("closed", onClose);
     return window;
+};
+
+const allowedExternalHosts = new Set([
+    'github.com',
+    'www.github.com',
+    'pcgamingwiki.com',
+    'www.pcgamingwiki.com',
+    'bilibili.com',
+    'www.bilibili.com',
+    'space.bilibili.com',
+]);
+
+const openAllowedExternalUrl = async (url: string): Promise<boolean> => {
+    try {
+        const parsedUrl = new URL(url);
+        if (!['https:', 'http:'].includes(parsedUrl.protocol)) {
+            return false;
+        }
+        if (!allowedExternalHosts.has(parsedUrl.hostname.toLowerCase())) {
+            return false;
+        }
+        await shell.openExternal(parsedUrl.toString());
+        return true;
+    } catch (error) {
+        console.error(`Rejected invalid external URL: ${url}`, error);
+        return false;
+    }
+};
+
+const parseVersion = (version: string): number[] => {
+    return version
+        .replace(/^v/i, '')
+        .split(/[+-]/)[0]
+        .split('.')
+        .map(part => Number.parseInt(part, 10) || 0);
+};
+
+const isVersionGreater = (candidate: string, current: string): boolean => {
+    const candidateParts = parseVersion(candidate);
+    const currentParts = parseVersion(current);
+    const maxLength = Math.max(candidateParts.length, currentParts.length);
+
+    for (let index = 0; index < maxLength; index++) {
+        const candidatePart = candidateParts[index] || 0;
+        const currentPart = currentParts[index] || 0;
+        if (candidatePart > currentPart) return true;
+        if (candidatePart < currentPart) return false;
+    }
+
+    return false;
 };
 
 const showNotification = (type: 'info' | 'warning' | 'critical', title: string, body: string) => {
@@ -44,7 +120,7 @@ const showNotification = (type: 'info' | 'warning' | 'critical', title: string, 
 };
 
 // Menu Initialization
-const initializeMenu = () => [
+const initializeMenu = (): MenuItemConstructorOptions[] => [
     {
         label: i18next.t("main.options"),
         submenu: [
@@ -87,9 +163,11 @@ const initializeMenu = () => [
             },
             {
                 label: 'DevTools',
-                click: (_: any, browserWindow: BrowserWindow | undefined) => {
-                    if (browserWindow) {
-                        browserWindow.webContents.toggleDevTools();
+                visible: !app.isPackaged,
+                click: (_menuItem, browserWindow) => {
+                    const targetWindow = browserWindow as BrowserWindow | undefined;
+                    if (targetWindow?.webContents) {
+                        targetWindow.webContents.toggleDevTools();
                     }
                 }
             },
@@ -138,13 +216,14 @@ const checkAppUpdate = async () => {
     try {
         const response = await fetch(UPDATE_URL);
         const data = await response.json();
-        const latestVersion = data.tag_name ? data.tag_name.replace(/^v/, "") : APP_VERSION;
+        const currentVersion = getCurrentVersion();
+        const latestVersion = data.tag_name ? data.tag_name.replace(/^v/, "") : currentVersion;
 
-        if (latestVersion > APP_VERSION) {
+        if (isVersionGreater(latestVersion, currentVersion)) {
             showNotification(
                 "info",
                 i18next.t('alert.update_available'),
-                `${i18next.t('alert.new_version_found', { old_version: APP_VERSION, new_version: latestVersion })}\n${i18next.t('alert.new_version_found_text')}`
+                `${i18next.t('alert.new_version_found', { old_version: currentVersion, new_version: latestVersion })}\n${i18next.t('alert.new_version_found_text')}`
             );
         }
     } catch (error) {
@@ -215,7 +294,7 @@ const getNewestBackup = (wikiPageId: string): string => {
 
 const moveFilesWithProgress = async (sourceDir: string, destinationDir: string) => {
     let totalSize = 0, movedSize = 0, errors: string[] = [];
-    appStatus.isMigrating = true;
+    appStatus.migrating = true;
     const progressId = 'migrate-backups';
     const progressTitle = i18next.t('alert.migrate_backups');
 
@@ -282,7 +361,7 @@ const moveFilesWithProgress = async (sourceDir: string, destinationDir: string) 
     if (mainWindow) {
         mainWindow.webContents.send('update-restore-table');
     }
-    appStatus.isMigrating = false;
+    appStatus.migrating = false;
 };
 
 // Settings
@@ -366,12 +445,12 @@ const saveSettings = (key: string, value: any) => {
 const getMainWindow = () => mainWindow;
 const getSettingsWindow = () => settingsWindow;
 const getAppStatus = () => appStatus;
-const updateAppStatus = (statusKey: keyof typeof appStatus, statusValue: boolean) => appStatus[statusKey] = statusValue;
-const getCurrentVersion = () => APP_VERSION;
+const updateAppStatus = (statusKey: AppStatusKey, statusValue: boolean) => appStatus[statusKey] = statusValue;
+const getCurrentVersion = () => app.getVersion();
 const getGameDisplayName = (gameObj: any) => appSettings.language === "en_US" ? gameObj.title : (appSettings.language === "zh_CN" ? gameObj.zh_CN || gameObj.title : gameObj.title);
 const getSettings = () => appSettings;
 
-const placeholderMapping = {
+const placeholderMapping: Record<string, string> = {
     '{{p|username}}': os.userInfo().username,
     '{{p|userprofile}}': process.env.USERPROFILE || os.homedir(),
     '{{p|userprofile/documents}}': app.getPath('documents'),
@@ -391,7 +470,7 @@ const placeholderMapping = {
     '{{p|xdgconfighome}}': process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
 };
 
-const placeholderIdentifier = {
+const placeholderIdentifier: Record<string, string> = {
     '{{p|username}}': '{{p1}}',
     '{{p|userprofile}}': '{{p2}}',
     '{{p|userprofile/documents}}': '{{p3}}',
@@ -416,7 +495,7 @@ const placeholderIdentifier = {
     '{{p|xdgconfighome}}': '{{p21}}',
 };
 
-const osKeyMap = {
+const osKeyMap: Record<string, 'win' | 'mac' | 'linux'> = {
     win32: 'win',
     darwin: 'mac',
     linux: 'linux'
@@ -443,5 +522,6 @@ export {
     moveFilesWithProgress,
     placeholderMapping,
     placeholderIdentifier,
-    osKeyMap
+    osKeyMap,
+    openAllowedExternalUrl
 };

@@ -1,6 +1,6 @@
 import { app, dialog } from 'electron';
 import { exec } from 'child_process';
-import { glob } from 'glob';
+import { globSync } from 'glob';
 import { Database } from 'sqlite3'
 import fs from 'fs';
 import fsOriginal from 'original-fs';
@@ -34,6 +34,7 @@ import {
   resolveTemplatedBackupPath,
   finalizeTemplate,
 } from './utils';
+import { getBundledDatabasePath } from './paths';
 
 const execPromise = util.promisify(exec);
 
@@ -107,7 +108,7 @@ async function getGameDataFromDB(): Promise<{ games: Game[]; errors: string[] }>
 
 async function ensureDatabaseExists(dbPath: string): Promise<void> {
   if (!fs.existsSync(dbPath)) {
-    const installedDbPath = path.join('./database', 'database.db');
+    const installedDbPath = getBundledDatabasePath();
     if (!fs.existsSync(installedDbPath)) {
       dialog.showErrorBox(
         i18next.t('alert.missing_database_file'),
@@ -139,7 +140,7 @@ async function processGameInstallPaths(
   games: Game[],
   errors: string[]
 ): Promise<void> {
-  if (gameInstallPaths.length > 0) {
+  if (Array.isArray(gameInstallPaths) && gameInstallPaths.length > 0) {
     for (const installPath of gameInstallPaths) {
       const directories = fsOriginal
         .readdirSync(installPath, { withFileTypes: true })
@@ -238,7 +239,13 @@ async function processCustomEntries(customJsonPath: string): Promise<{ customGam
       customEntry.platform = ['Custom'];
       customEntry.latest_backup = getNewestBackup(customEntry.wiki_page_id);
       for (const plat in customEntry.save_location) {
-        customEntry.save_location[plat] = customEntry.save_location[plat].map((entry) => entry.template);
+        const entries = customEntry.save_location[plat] as unknown[];
+        customEntry.save_location[plat] = entries.map((entry) => {
+          if (typeof entry === 'string') {
+            return entry;
+          }
+          return (entry as { template: string }).template;
+        });
       }
 
       const processed_game = await processGame(customEntry);
@@ -340,7 +347,7 @@ async function processFilePaths(db_game_row: Game, osKey: string, resolved_paths
 
 async function processWildcardPaths(resolvedPath: { path: string; uid?: string }, templatedPath: string, resolved_paths: ResolvedPath[]): Promise<number> {
   let totalBackupSize = 0;
-  const files = glob.sync(resolvedPath.path.replace(/\\/g, '/'));
+  const files = globSync(resolvedPath.path.replace(/\\/g, '/'));
 
   for (const filePath of files) {
     if (fsOriginal.existsSync(filePath)) {
@@ -513,19 +520,23 @@ async function updateDatabase(): Promise<void> {
   const databaseLink = "https://raw.githubusercontent.com/dyang886/Game-Save-Manager/main/database/database.db";
   const dbPath = path.join(app.getPath("userData"), "GSM Database", "database.db");
   const backupPath = `${dbPath}.backup`;
+  const downloadPath = `${dbPath}.download`;
 
   getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, 'start');
 
   try {
     await ensureDirectoryExists(path.dirname(dbPath));
     await backupExistingDatabase(dbPath, backupPath);
-    await downloadDatabase(databaseLink, dbPath, progressId, progressTitle);
+    await removeBackup(downloadPath);
+    await downloadDatabase(databaseLink, downloadPath, progressId, progressTitle);
+    await validateDatabaseFile(downloadPath);
+    await fse.move(downloadPath, dbPath, { overwrite: true });
     await removeBackup(backupPath);
 
     getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, 'end');
     getMainWindow()!.webContents.send('show-alert', 'success', i18next.t('alert.update_db_success'));
   } catch (error) {
-    handleUpdateError(error, backupPath, dbPath, progressId, progressTitle);
+    handleUpdateError(error, backupPath, downloadPath, dbPath, progressId, progressTitle);
   }
 }
 
@@ -544,15 +555,23 @@ async function backupExistingDatabase(dbPath: string, backupPath: string): Promi
 async function downloadDatabase(databaseLink: string, dbPath: string, progressId: string, progressTitle: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const request = https.get(databaseLink, (response) => {
-      const totalSize = parseInt(response.headers['content-length']!, 10);
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`Database download failed with status ${response.statusCode}`));
+        return;
+      }
+
+      const totalSize = Number.parseInt(response.headers['content-length'] || '', 10);
       let downloadedSize = 0;
 
       const fileStream = fs.createWriteStream(dbPath);
 
       response.on('data', (chunk) => {
         downloadedSize += chunk.length;
-        const progressPercentage = Math.round((downloadedSize / totalSize) * 100);
-        getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, progressPercentage);
+        if (Number.isFinite(totalSize) && totalSize > 0) {
+          const progressPercentage = Math.round((downloadedSize / totalSize) * 100);
+          getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, progressPercentage);
+        }
       });
 
       response.pipe(fileStream);
@@ -566,6 +585,10 @@ async function downloadDatabase(databaseLink: string, dbPath: string, progressId
       response.on('error', (error) => {
         reject(error);
       });
+
+      fileStream.on('error', (error) => {
+        reject(error);
+      });
     });
 
     request.on('error', (error) => {
@@ -574,18 +597,54 @@ async function downloadDatabase(databaseLink: string, dbPath: string, progressId
   });
 }
 
+async function validateDatabaseFile(dbPath: string): Promise<void> {
+  const db = new Database(dbPath, sqlite3.OPEN_READONLY);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      db.get(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'games'",
+        (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (!row) {
+            reject(new Error('Downloaded database does not contain the games table'));
+            return;
+          }
+          resolve();
+        }
+      );
+    });
+  } finally {
+    await new Promise<void>((resolve) => {
+      db.close((err) => {
+        if (err) {
+          console.error('[validateDatabaseFile] Error closing database:', err);
+        }
+        resolve();
+      });
+    });
+  }
+}
+
 async function removeBackup(backupPath: string): Promise<void> {
   if (fs.existsSync(backupPath)) {
     fs.unlinkSync(backupPath);
   }
 }
 
-function handleUpdateError(error: unknown, backupPath: string, dbPath: string, progressId: string, progressTitle: string): void {
+function handleUpdateError(error: unknown, backupPath: string, downloadPath: string, dbPath: string, progressId: string, progressTitle: string): void {
   if (error instanceof Error) {
     console.error(`An error occurred while updating the database: ${error.message}`);
     getMainWindow()!.webContents.send('show-alert', 'modal', i18next.t('alert.error_during_db_update'), error.message);
   }
   getMainWindow()!.webContents.send('update-progress', progressId, progressTitle, 'end');
+
+  if (fs.existsSync(downloadPath)) {
+    fs.unlinkSync(downloadPath);
+  }
 
   if (fs.existsSync(backupPath)) {
     fs.copyFileSync(backupPath, dbPath);

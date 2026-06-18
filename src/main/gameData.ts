@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import glob from 'glob';
+import { globSync } from 'glob';
 import vdf from 'vdf-parser';
 import WinReg from 'winreg';
 import yaml from 'js-yaml';
@@ -122,7 +122,7 @@ class GameData implements IGameData {
       if (fs.existsSync(loginUsersPath)) {
         try {
           const vdfContent = fs.readFileSync(loginUsersPath, 'utf-8');
-          const parsedData = vdf.parse(vdfContent) as { users: { [key: string]: any } };
+          const parsedData = vdf.parse(vdfContent) as SteamLoginUsers;
 
           if (parsedData.users) {
             for (const userId64 in parsedData.users) {
@@ -157,9 +157,8 @@ class GameData implements IGameData {
             const localConfigContent = fs.readFileSync(configPath, 'utf-8');
             const localConfigData = vdf.parse(localConfigContent);
 
-            const localConfigDataTyped = localConfigData as { UserLocalConfigStore?: { friends?: { PersonaName?: string } } };
+            const localConfigDataTyped = localConfigData as SteamLocalConfig;
             if (localConfigDataTyped.UserLocalConfigStore && localConfigDataTyped.UserLocalConfigStore.friends) {
-              const localConfigDataTyped = localConfigData as { UserLocalConfigStore?: { friends?: { PersonaName?: string } } };
               const personaName = localConfigDataTyped.UserLocalConfigStore?.friends?.PersonaName;
               if (personaName === this.currentSteamUserName) {
                 this.currentSteamUserId3 = userId3;
@@ -180,8 +179,8 @@ class GameData implements IGameData {
     }
 
     // Get current Ubisoft user id
-    const saveGamesPath = path.join(this.ubisoftPath, 'savegames');
-    if (fs.existsSync(saveGamesPath)) {
+    const saveGamesPath = this.ubisoftPath ? path.join(this.ubisoftPath, 'savegames') : '';
+    if (saveGamesPath && fs.existsSync(saveGamesPath)) {
       try {
         const userFolders = fs.readdirSync(saveGamesPath, { withFileTypes: true })
           .filter(dirent => dirent.isDirectory())
@@ -203,8 +202,10 @@ class GameData implements IGameData {
       } catch (e) {
         console.log('Error reading or parsing Ubisoft savegames directory:', e);
       }
-    } else {
+    } else if (saveGamesPath) {
       console.log(`No Ubisoft users found at: ${saveGamesPath}`);
+    } else {
+      console.log('Ubisoft Connect not installed');
     }
   }
 
@@ -215,11 +216,11 @@ class GameData implements IGameData {
 
     if (process.platform === 'win32') {
       // Detect Steam game installation folders
-      const steamVdfPath = path.join(this.steamPath, 'config', 'libraryfolders.vdf');
-      if (fs.existsSync(steamVdfPath)) {
+      const steamVdfPath = this.steamPath ? path.join(this.steamPath, 'config', 'libraryfolders.vdf') : '';
+      if (steamVdfPath && fs.existsSync(steamVdfPath)) {
         try {
           const vdfContent = fs.readFileSync(steamVdfPath, 'utf-8');
-          const parsedData = vdf.parse(vdfContent) as { libraryfolders: { [key: string]: { path?: string; apps?: { [key: string]: any } } } };
+          const parsedData = vdf.parse(vdfContent) as SteamLibraryFolders;
 
           for (const key in parsedData.libraryfolders) {
             if (parsedData.libraryfolders.hasOwnProperty(key)) {
@@ -243,8 +244,10 @@ class GameData implements IGameData {
         } catch (e) {
           console.log('Error reading or parsing Steam libraryfolders.vdf file:', e);
         }
-      } else {
+      } else if (steamVdfPath) {
         console.log(`Steam libraryfolders.vdf file not found at: ${steamVdfPath}`);
+      } else {
+        console.log('Steam not installed');
       }
 
       // Detect Ubisoft game installation folders
@@ -256,8 +259,8 @@ class GameData implements IGameData {
       if (fs.existsSync(ubisoftSettingsPath)) {
         try {
           const fileContents = fs.readFileSync(ubisoftSettingsPath, 'utf8');
-          const settings = yaml.load(fileContents);
-          const gameInstallationPath = settings.misc.game_installation_path;
+          const settings = yaml.load(fileContents) as UbisoftSettings | null;
+          const gameInstallationPath = settings?.misc?.game_installation_path;
 
           if (gameInstallationPath && fs.existsSync(gameInstallationPath)) {
             this.detectedGamePaths.push(path.normalize(gameInstallationPath));
@@ -276,7 +279,7 @@ class GameData implements IGameData {
         'EA Desktop',
         'user_*.ini'
       );
-      const files = glob.sync(eaSettingsPattern.replace(/\\/g, '/'));
+      const files = globSync(eaSettingsPattern.replace(/\\/g, '/'));
       if (files.length > 0) {
         try {
           const eaSettingsPath = files[0];
@@ -307,7 +310,7 @@ class GameData implements IGameData {
       if (fs.existsSync(battleNetConfigPath)) {
         try {
           const configFile = fs.readFileSync(battleNetConfigPath, 'utf-8');
-          const config = JSON.parse(configFile);
+          const config = JSON.parse(configFile) as BattleNetConfig;
 
           const defaultInstallPath = config.Client.Install.DefaultInstallPath;
           if (defaultInstallPath && fs.existsSync(defaultInstallPath)) {

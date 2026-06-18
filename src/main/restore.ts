@@ -304,6 +304,10 @@ function resolveTemplatedRestorePath(templatedPath: string, installFolder: strin
 function getGameInstallPath(installFolder: string): string {
     const gameInstallPaths = getSettings().gameInstalls;
 
+    if (!Array.isArray(gameInstallPaths)) {
+        return 'gameNotInstalled';
+    }
+
     for (const installPath of gameInstallPaths) {
         const directories = fsOriginal.readdirSync(installPath, { withFileTypes: true })
             .filter(dirent => dirent.isDirectory())
@@ -322,4 +326,8 @@ function getGameInstallPath(installFolder: string): string {
 export {
     getGameDataForRestore,
     restoreGame,
+    shouldSkip,
+    getLatestModificationTime,
+    resolveTemplatedRestorePath,
+    getGameInstallPath,
 };

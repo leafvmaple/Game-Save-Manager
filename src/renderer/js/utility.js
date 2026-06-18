@@ -1,5 +1,18 @@
 window.api.send('load-theme');
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeAttribute(value) {
+    return escapeHtml(value);
+}
+
 window.api.receive('apply-theme', (theme) => {
     changeTheme(theme);
 });
@@ -76,7 +89,7 @@ async function showAlert(type, message, modalContent) {
         </svg>
         <span class="sr-only">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
         <div class="ms-3 text-sm font-medium">
-            <span class="text-content">${message}</span>
+            <span class="text-content">${escapeHtml(message)}</span>
         </div>
     `;
 
@@ -135,7 +148,7 @@ function showModal(modalTitle, modalContent) {
     modalTitleElement.textContent = modalTitle;
 
     if (Array.isArray(modalContent)) {
-        modalContentElement.innerHTML = modalContent.map(item => `<li>${item}</li>`).join('');
+        modalContentElement.innerHTML = modalContent.map(item => `<li>${escapeHtml(item)}</li>`).join('');
     } else {
         modalContentElement.textContent = modalContent;
     }
@@ -166,7 +179,7 @@ function updateProgress(progressId, progressTitle, percentage) {
         progressElement.className = "ml-auto max-w-max p-4 mb-2 rounded-lg bg-blue-50 dark:bg-gray-800 animate-fadeIn";
         progressElement.innerHTML = `
             <div class="flex justify-between mb-1 text-sm font-medium text-blue-700 dark:text-white">
-                <span >${progressTitle}</span>
+                <span>${escapeHtml(progressTitle)}</span>
                 <span id="${progressId}-percentage">0%</span>
             </div>
             <div class="w-60 bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">

@@ -212,6 +212,8 @@ function formatSize(sizeInBytes) {
 async function createDropdownMenu(wikiPageId) {
     let action = 'pin-on-top';
     let i18nKey = 'main.pin_on_top';
+    const safeWikiPageId = encodeURIComponent(String(wikiPageId));
+    const escapedWikiPageId = escapeAttribute(wikiPageId);
 
     const settings = await window.api.invoke('get-settings');
     if (settings && settings.pinnedGames.includes(wikiPageId.toString())) {
@@ -224,19 +226,19 @@ async function createDropdownMenu(wikiPageId) {
     dropdownMenu.innerHTML = `
         <ul class="py-2 text-sm text-gray-700 dark:text-gray-200">
             <li>
-                <a href="#" data-action="${action}" data-id="${wikiPageId}" data-i18n="${i18nKey}"
+                <a href="#" data-action="${action}" data-id="${escapedWikiPageId}" data-i18n="${i18nKey}"
                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">
                     <span class="text-content"></span>
                 </a>
             </li>
             <li>
-                <a href="#" data-action="open-wiki" data-url="https://www.pcgamingwiki.com/wiki/index.php?curid=${wikiPageId}" data-i18n="main.view_wiki"
+                <a href="#" data-action="open-wiki" data-url="https://www.pcgamingwiki.com/wiki/index.php?curid=${safeWikiPageId}" data-i18n="main.view_wiki"
                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">
                     <span class="text-content">View on PCGamingWiki</span>
                 </a>
             </li>
             <li>
-                <a href="#" data-action="open-backup-folder" data-id="${wikiPageId}" data-i18n="main.open_backup_folder"
+                <a href="#" data-action="open-backup-folder" data-id="${escapedWikiPageId}" data-i18n="main.open_backup_folder"
                     class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">
                     <span class="text-content">Open backup folder</span>
                 </a>

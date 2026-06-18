@@ -1,6 +1,6 @@
 import fsOriginal from 'original-fs';
 import path from 'path';
-import { glob } from 'glob';
+import { globSync } from 'glob';
 import WinReg from 'winreg';
 import { getGameData } from './gameData';
 import { placeholderMapping, placeholderIdentifier } from './global';
@@ -71,7 +71,7 @@ async function fillPathUid(basePath: string): Promise<{ path: string; uid?: stri
 
   for (const uid of userIds) {
     const resolvedPath = basePath.replace(/\{\{p\|uid\}\}/gi, uid!).replace(/\\/g, '/');
-    const matchedPaths = glob.sync(resolvedPath);
+    const matchedPaths = globSync(resolvedPath);
 
     if (matchedPaths.length > 0) {
       return {
@@ -82,7 +82,7 @@ async function fillPathUid(basePath: string): Promise<{ path: string; uid?: stri
   }
 
   const wildcardPath = basePath.replace(/\{\{p\|uid\}\}/gi, '*');
-  const wildcardResolvedPaths = glob.sync(wildcardPath.replace(/\\/g, '/'));
+  const wildcardResolvedPaths = globSync(wildcardPath.replace(/\\/g, '/'));
 
   if (wildcardResolvedPaths.length === 0) {
     return { path: '' };

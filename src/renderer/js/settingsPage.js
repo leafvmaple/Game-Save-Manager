@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             autoAppUpdateCheckbox.checked = settings.autoAppUpdate;
             autoDbUpdateCheckbox.checked = settings.autoDbUpdate;
 
-            if (settings.gameInstalls && settings.gameInstalls.length > 0) {
+            if (Array.isArray(settings.gameInstalls) && settings.gameInstalls.length > 0) {
                 settings.gameInstalls.forEach((installPath) => {
                     addGameInstallPath(installPath);
                 });
@@ -78,7 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return sortedArr1.every((value, index) => value === sortedArr2[index]);
             };
 
-            if (!areArraysEqual(previousSettings.gameInstalls, newGameInstallPaths)) {
+            const previousGameInstalls = Array.isArray(previousSettings.gameInstalls) ? previousSettings.gameInstalls : [];
+            if (!areArraysEqual(previousGameInstalls, newGameInstallPaths)) {
                 window.api.send('save-settings', 'gameInstalls', newGameInstallPaths);
             }
 
@@ -117,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newPath = document.createElement('div');
         newPath.className = 'flex mb-2 game-path-item';
         newPath.innerHTML = `
-            <input type="text" readonly value="${installPath}"
+            <input type="text" readonly value="${escapeAttribute(installPath)}"
                 class="display-path flex-grow bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-l-lg p-2.5 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" />
             <button type="button" class="select-path text-white bg-blue-700 hover:bg-blue-800 focus:outline-none font-medium rounded-r-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700">
                 <i class="fa-solid fa-ellipsis"></i>

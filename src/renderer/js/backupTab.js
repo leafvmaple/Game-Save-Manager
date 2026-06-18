@@ -104,6 +104,9 @@ function createBackupTableRow(gameTitle, platformIcons, backupSize, newestBackup
     const row = document.createElement('tr');
     row.setAttribute('data-wiki-id', wikiPageId);
     row.classList.add('bg-white', 'border-b', 'dark:bg-gray-800', 'dark:border-gray-700', 'hover:bg-gray-50', 'dark:hover:bg-gray-600');
+    const escapedGameTitle = escapeHtml(gameTitle);
+    const escapedBackupSize = escapeHtml(backupSize);
+    const escapedNewestBackupTime = escapeHtml(newestBackupTime);
     row.innerHTML = `
         <td class="w-4 py-4 pl-4">
             <div class="flex items-center">
@@ -112,16 +115,16 @@ function createBackupTableRow(gameTitle, platformIcons, backupSize, newestBackup
             </div>
         </td>
         <th scope="row" class="pr-6 py-4 truncate font-medium text-gray-900 whitespace-nowrap dark:text-white">
-            ${gameTitle}
+            ${escapedGameTitle}
         </th>
         <td class="px-6 py-4 truncate">
             ${platformIcons}
         </td>
         <td class="px-6 py-4 truncate">
-            ${backupSize}
+            ${escapedBackupSize}
         </td>
         <td class="px-6 py-4 truncate newest-backup-time">
-            ${newestBackupTime}
+            ${escapedNewestBackupTime}
         </td>
         <td class="px-6 py-4 truncate text-center">
             <button class="dropdown-menu-button inline-flex items-center p-2 text-sm font-medium text-center text-gray-900 hover:bg-transparent focus:outline-none dark:text-white"

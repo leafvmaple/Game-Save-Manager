@@ -20,8 +20,8 @@ function setupCustomPage() {
         }
     });
 
-    saveAllButton.addEventListener('click', () => {
-        const start = operationStartCheck('save-custom');
+    saveAllButton.addEventListener('click', async () => {
+        const start = await operationStartCheck('save-custom');
         if (start) saveEntriesToJson(saveAllButton);
     });
 
@@ -175,7 +175,7 @@ async function addTemplate(renameTitleFocus = true, wikiId = null) {
 
     // Toggle collapsed content when the dropdown icon is clicked
     dropdownIcon.addEventListener('click', () => {
-        if (!entryTitle.innerHTML.trim()) {
+        if (!entryTitle.textContent.trim()) {
             renameEntry();
         } else {
             toggleEntry(newEntry);
@@ -202,7 +202,7 @@ async function addTemplate(renameTitleFocus = true, wikiId = null) {
         titleInput.classList.add('hidden');
         entryTitle.classList.remove('hidden');
 
-        if (entryTitle.innerHTML.trim() && !hasToggled) {
+        if (entryTitle.textContent.trim() && !hasToggled) {
             toggleEntry(newEntry);
             hasToggled = true;
         }

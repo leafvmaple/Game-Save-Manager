@@ -24,7 +24,8 @@ import {
     getSettings,
     moveFilesWithProgress,
     getCurrentVersion,
-    getLatestVersion
+    getLatestVersion,
+    openAllowedExternalUrl
 } from './global';
 
 import {
@@ -45,6 +46,49 @@ import {
 } from "./restore";
 
 app.commandLine.appendSwitch("lang", "en");
+
+type SettingsKey =
+    | 'theme'
+    | 'language'
+    | 'backupPath'
+    | 'maxBackups'
+    | 'autoAppUpdate'
+    | 'autoDbUpdate'
+    | 'gameInstalls'
+    | 'pinnedGames';
+
+const allowedStatusKeys = new Set(['backuping', 'restoring', 'migrating', 'updating_db']);
+
+const isSafeId = (value: unknown): value is string => {
+    return typeof value === 'string' && /^[a-zA-Z0-9_-]+$/.test(value);
+};
+
+const sanitizeSettingsValue = (key: string, value: unknown): [SettingsKey, any] | null => {
+    switch (key) {
+        case 'theme':
+            return value === 'light' || value === 'dark' ? [key, value] : null;
+        case 'language':
+            return ['en_US', 'zh_CN', 'zh_TW'].includes(String(value)) ? [key, String(value)] : null;
+        case 'backupPath':
+            return typeof value === 'string' && path.isAbsolute(value) ? [key, value] : null;
+        case 'maxBackups': {
+            const maxBackups = Number.parseInt(String(value), 10);
+            if (!Number.isFinite(maxBackups)) return null;
+            return [key, Math.min(Math.max(maxBackups, 1), 1000)];
+        }
+        case 'autoAppUpdate':
+        case 'autoDbUpdate':
+            return typeof value === 'boolean' ? [key, value] : null;
+        case 'gameInstalls':
+            if (!Array.isArray(value)) return null;
+            return [key, value.filter(item => typeof item === 'string' && path.isAbsolute(item))];
+        case 'pinnedGames':
+            if (!Array.isArray(value)) return null;
+            return [key, value.map(String).filter(isSafeId)];
+        default:
+            return null;
+    }
+};
 
 app.whenReady().then(async () => {
     loadSettings();
@@ -89,7 +133,12 @@ ipcMain.handle("translate", async (event, key: string, options: any) => {
 });
 
 ipcMain.on('save-settings', async (event, key: string, value: any) => {
-    saveSettings(key, value);
+    const sanitized = sanitizeSettingsValue(key, value);
+    if (!sanitized) {
+        console.warn(`Rejected invalid settings update: ${key}`);
+        return;
+    }
+    saveSettings(sanitized[0], sanitized[1]);
 });
 
 ipcMain.on("load-theme", (event) => {
@@ -106,10 +155,16 @@ ipcMain.handle("get-detected-game-paths", async () => {
 });
 
 ipcMain.handle('open-url', async (event, url: string) => {
-    await shell.openExternal(url);
+    const opened = await openAllowedExternalUrl(url);
+    if (!opened) {
+        console.warn(`Blocked external URL: ${url}`);
+    }
 });
 
 ipcMain.handle('open-backup-folder', async (event, wikiId: string) => {
+    if (!isSafeId(wikiId)) {
+        return;
+    }
     const backupPath = path.join(getSettings().backupPath, wikiId.toString());
     if (fsOriginal.existsSync(backupPath) && fsOriginal.readdirSync(backupPath).length > 0) {
         await shell.openPath(backupPath);
@@ -173,6 +228,8 @@ ipcMain.handle('select-path', async (event, fileType: string) => {
             break;
         case 'registry':
             return null;
+        default:
+            return null;
     }
 
     const result = await dialog.showOpenDialog(focusedWindow, {
@@ -188,6 +245,9 @@ ipcMain.handle('select-path', async (event, fileType: string) => {
 });
 
 ipcMain.handle('get-newest-backup-time', (event, wikiPageId: string) => {
+    if (!isSafeId(wikiPageId)) {
+        return i18next.t('main.no_backups');
+    }
     return getNewestBackup(wikiPageId);
 });
 
@@ -285,6 +345,9 @@ ipcMain.handle('fetch-backup-table-data', async () => {
 });
 
 ipcMain.handle('backup-game', async (event, gameObj: any) => {
+    if (!gameObj || !isSafeId(String(gameObj.wiki_page_id))) {
+        return i18next.t('alert.backup_process_error_display');
+    }
     return await backupGame(gameObj);
 });
 
@@ -299,10 +362,17 @@ ipcMain.handle('fetch-restore-table-data', async () => {
 });
 
 ipcMain.handle('restore-game', async (event, gameObj: any, userActionForAll: any) => {
+    if (!gameObj || !isSafeId(String(gameObj.wiki_page_id))) {
+        return { action: null, error: i18next.t('alert.restore_process_error_display') };
+    }
     return await restoreGame(gameObj, userActionForAll);
 });
 
 ipcMain.on('migrate-backups', (event, newBackupPath: string) => {
+    if (typeof newBackupPath !== 'string' || !path.isAbsolute(newBackupPath)) {
+        console.warn(`Rejected invalid backup migration path: ${newBackupPath}`);
+        return;
+    }
     const currentBackupPath = getSettings().backupPath;
     moveFilesWithProgress(currentBackupPath, newBackupPath);
 });
@@ -311,7 +381,11 @@ ipcMain.handle('get-status', () => {
     return getAppStatus();
 });
 
-ipcMain.on('update-status', (event, statusKey: string, statusValue: boolean) => {
+ipcMain.on('update-status', (event, statusKey: string, statusValue: any) => {
+    if (!allowedStatusKeys.has(statusKey) || typeof statusValue !== 'boolean') {
+        console.warn(`Rejected invalid status update: ${statusKey}`);
+        return;
+    }
     updateAppStatus(statusKey as keyof ReturnType<typeof getAppStatus>, statusValue);
 });
 

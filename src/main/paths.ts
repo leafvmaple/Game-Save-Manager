@@ -19,9 +19,16 @@ const getRenderPath = (...paths: string[]) => {
   return path.join(getRootPath(), "src", 'renderer', ...paths);
 };
 
+const getBundledDatabasePath = () => {
+  return app.isPackaged
+    ? path.join(path.dirname(process.execPath), 'database', 'database.db')
+    : path.join(getRootPath(), 'database', 'database.db');
+};
+
 export {
   getRootPath,
   getAssetPath,
   getLocalePath,
-  getRenderPath
+  getRenderPath,
+  getBundledDatabasePath
 };
