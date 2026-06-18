@@ -17,7 +17,9 @@
         "save_settings": "保存设置",
         "save-settings-success": "设置保存成功",
         "auto_app_update": "自动检查软件更新",
-        "auto_db_update": "自动更新数据库"
+        "auto_db_update": "自动更新数据库",
+        "auto_backup": "自动备份有变化的存档",
+        "auto_backup_interval": "自动备份间隔（分钟）"
     },
     "about": {
         "title": "关于",
@@ -122,6 +124,8 @@
         "ubisoft_not_installed": "Ubisoft 未安装",
         "missing_database_file": "缺少数据库文件",
         "missing_database_file_message": "找不到数据库文件，请尝试更新数据库或重新安装应用程序",
-        "manually_skipped": "手动跳过"
+        "manually_skipped": "手动跳过",
+        "auto_backup_complete": "已自动备份 {{count}} 个游戏",
+        "auto_backup_failed": "{{count}} 个游戏自动备份失败"
     }
 }

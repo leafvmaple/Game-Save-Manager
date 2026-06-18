@@ -45,6 +45,13 @@ import {
     restoreGame
 } from "./restore";
 
+import {
+    refreshAutoBackupScheduler,
+    sanitizeAutoBackupInterval,
+    startAutoBackupScheduler,
+    stopAutoBackupScheduler
+} from './autoBackup';
+
 app.commandLine.appendSwitch("lang", "en");
 
 type SettingsKey =
@@ -54,6 +61,8 @@ type SettingsKey =
     | 'maxBackups'
     | 'autoAppUpdate'
     | 'autoDbUpdate'
+    | 'autoBackupEnabled'
+    | 'autoBackupInterval'
     | 'gameInstalls'
     | 'pinnedGames';
 
@@ -78,7 +87,10 @@ const sanitizeSettingsValue = (key: string, value: unknown): [SettingsKey, any] 
         }
         case 'autoAppUpdate':
         case 'autoDbUpdate':
+        case 'autoBackupEnabled':
             return typeof value === 'boolean' ? [key, value] : null;
+        case 'autoBackupInterval':
+            return [key, sanitizeAutoBackupInterval(value)];
         case 'gameInstalls':
             if (!Array.isArray(value)) return null;
             return [key, value.filter(item => typeof item === 'string' && path.isAbsolute(item))];
@@ -106,10 +118,15 @@ app.whenReady().then(async () => {
     if (getSettings().autoAppUpdate) {
         checkAppUpdate();
     }
+    startAutoBackupScheduler();
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     });
+});
+
+app.on('before-quit', () => {
+    stopAutoBackupScheduler();
 });
 
 // Language settings
@@ -138,7 +155,11 @@ ipcMain.on('save-settings', async (event, key: string, value: any) => {
         console.warn(`Rejected invalid settings update: ${key}`);
         return;
     }
-    saveSettings(sanitized[0], sanitized[1]);
+    const [settingsKey, settingsValue] = sanitized;
+    saveSettings(settingsKey, settingsValue);
+    if (settingsKey === 'autoBackupEnabled' || settingsKey === 'autoBackupInterval') {
+        refreshAutoBackupScheduler(true);
+    }
 });
 
 ipcMain.on("load-theme", (event) => {

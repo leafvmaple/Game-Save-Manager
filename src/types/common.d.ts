@@ -25,10 +25,11 @@ export interface OsKeyMap {
  * Application status tracking
  */
 export interface AppStatus {
-  isBackingUp: boolean;
-  isRestoring: boolean;
-  isMigrating: boolean;
-  isUpdatingDb: boolean;
+  backuping: boolean;
+  auto_backuping: boolean;
+  restoring: boolean;
+  migrating: boolean;
+  updating_db: boolean;
 }
 
 /**

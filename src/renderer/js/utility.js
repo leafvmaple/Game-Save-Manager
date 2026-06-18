@@ -208,26 +208,31 @@ async function operationStartCheck(operation) {
     // Define contradicting operations
     const statusChecks = {
         'backup': {
+            auto_backuping: 'alert.wait_for_backup',
             restoring: 'alert.wait_for_restore',
             migrating: 'alert.wait_for_migrate',
             updating_db: 'alert.wait_for_updating_db'
         },
         'restore': {
             backuping: 'alert.wait_for_backup',
+            auto_backuping: 'alert.wait_for_backup',
             migrating: 'alert.wait_for_migrate'
         },
         'change-settings': {
             backuping: 'alert.wait_for_backup',
+            auto_backuping: 'alert.wait_for_backup',
             restoring: 'alert.wait_for_restore',
             migrating: 'alert.wait_for_migrate'
         },
         'save-custom': {
             backuping: 'alert.wait_for_backup',
+            auto_backuping: 'alert.wait_for_backup',
             restoring: 'alert.wait_for_restore',
             migrating: 'alert.wait_for_migrate'
         },
         'update-db': {
             backuping: 'alert.wait_for_backup',
+            auto_backuping: 'alert.wait_for_backup',
         }
     };
 

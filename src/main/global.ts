@@ -20,6 +20,7 @@ const UPDATE_URL = "https://api.github.com/repos/dyang886/Game-Save-Manager/rele
 
 let appStatus = {
     backuping: false,
+    auto_backuping: false,
     restoring: false,
     migrating: false,
     updating_db: false
@@ -130,9 +131,9 @@ const initializeMenu = (): MenuItemConstructorOptions[] => [
                     if (!settingsWindow || settingsWindow.isDestroyed()) {
                         settingsWindow = createWindow({
                             width: 650,
-                            height: 700,
+                            height: 760,
                             minWidth: 650,
-                            minHeight: 700,
+                            minHeight: 760,
                             icon: getAssetPath("setting.ico"),
                             parent: mainWindow!,
                             modal: true,
@@ -389,6 +390,8 @@ const loadSettings = () => {
         maxBackups: 5,
         autoAppUpdate: true,
         autoDbUpdate: false,
+        autoBackupEnabled: false,
+        autoBackupInterval: 30,
         gameInstalls: 'uninitialized',
         pinnedGames: [] as string[]
     };

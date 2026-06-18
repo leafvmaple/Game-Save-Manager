@@ -17,7 +17,9 @@
         "save_settings": "Save Settings",
         "save-settings-success": "Successfully saved settings",
         "auto_app_update": "Check software update automatically",
-        "auto_db_update": "Update database automatically"
+        "auto_db_update": "Update database automatically",
+        "auto_backup": "Backup changed saves automatically",
+        "auto_backup_interval": "Auto Backup Interval (minutes)"
     },
     "about": {
         "title": "About",
@@ -122,6 +124,8 @@
         "ubisoft_not_installed": "Ubisoft not installed",
         "missing_database_file": "Missing database file",
         "missing_database_file_message": "Could not find database file, please try updating database or reinstalling the application",
-        "manually_skipped": "Manually skipped"
+        "manually_skipped": "Manually skipped",
+        "auto_backup_complete": "Automatic backup completed for {{count}} game(s)",
+        "auto_backup_failed": "Automatic backup failed for {{count}} game(s)"
     }
 }

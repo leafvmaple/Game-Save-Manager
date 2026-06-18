@@ -10,7 +10,7 @@ export type Language = 'en_US' | 'zh_CN' | 'zh_TW';
 /**
  * Application themes
  */
-export type Theme = 'light' | 'dark' | 'auto';
+export type Theme = 'light' | 'dark';
 
 /**
  * Application settings interface
@@ -20,12 +20,13 @@ export interface AppSettings {
   theme: Theme;
   backupPath: string;
   gameInstalls: string[] | 'uninitialized';
-  maxBackupCount: number;
+  maxBackups: number;
   autoAppUpdate: boolean;
+  autoDbUpdate: boolean;
+  autoBackupEnabled: boolean;
+  autoBackupInterval: number;
   pinnedGames: string[];
   compressionEnabled?: boolean;
-  autoBackupEnabled?: boolean;
-  autoBackupInterval?: number; // in minutes
 }
 
 /**

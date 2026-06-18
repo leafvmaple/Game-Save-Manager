@@ -6,10 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxBackupsInput = document.getElementById('max-backups');
     const autoAppUpdateCheckbox = document.getElementById('auto-app-update');
     const autoDbUpdateCheckbox = document.getElementById('auto-db-update');
+    const autoBackupEnabledCheckbox = document.getElementById('auto-backup-enabled');
+    const autoBackupIntervalInput = document.getElementById('auto-backup-interval');
     const autoDetectButton = document.getElementById('auto-detect-paths');
     const gamePathsContainer = document.getElementById('game-paths-container');
     const addNewPathButton = document.getElementById('add-new-path');
     const saveSettingsButton = document.getElementById('save-settings');
+    const autoBackupMinInterval = 5;
+    const autoBackupMaxInterval = 1440;
 
     window.api.invoke('get-settings').then((settings) => {
         if (settings) {
@@ -19,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
             maxBackupsInput.value = settings.maxBackups;
             autoAppUpdateCheckbox.checked = settings.autoAppUpdate;
             autoDbUpdateCheckbox.checked = settings.autoDbUpdate;
+            autoBackupEnabledCheckbox.checked = settings.autoBackupEnabled === true;
+            autoBackupIntervalInput.value = settings.autoBackupInterval || 30;
+            updateAutoBackupIntervalState();
 
             if (Array.isArray(settings.gameInstalls) && settings.gameInstalls.length > 0) {
                 settings.gameInstalls.forEach((installPath) => {
@@ -51,6 +58,17 @@ document.addEventListener('DOMContentLoaded', () => {
             this.value = 1;
         } else if (value > 1000) {
             this.value = 1000;
+        }
+    });
+
+    autoBackupEnabledCheckbox.addEventListener('change', updateAutoBackupIntervalState);
+
+    autoBackupIntervalInput.addEventListener('input', function () {
+        const value = parseInt(this.value, 10);
+        if (isNaN(value) || value < autoBackupMinInterval) {
+            this.value = autoBackupMinInterval;
+        } else if (value > autoBackupMaxInterval) {
+            this.value = autoBackupMaxInterval;
         }
     });
 
@@ -92,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             window.api.send('save-settings', 'maxBackups', maxBackupsInput.value);
             window.api.send('save-settings', 'autoAppUpdate', autoAppUpdateCheckbox.checked);
             window.api.send('save-settings', 'autoDbUpdate', autoDbUpdateCheckbox.checked);
+            window.api.send('save-settings', 'autoBackupEnabled', autoBackupEnabledCheckbox.checked);
+            window.api.send('save-settings', 'autoBackupInterval', autoBackupIntervalInput.value);
             showAlert('success', await window.i18n.translate('settings.save-settings-success'));
         }
     });
@@ -172,6 +192,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         return isDuplicate;
+    }
+
+    function updateAutoBackupIntervalState() {
+        autoBackupIntervalInput.disabled = !autoBackupEnabledCheckbox.checked;
+        autoBackupIntervalInput.classList.toggle('opacity-50', !autoBackupEnabledCheckbox.checked);
+        autoBackupIntervalInput.classList.toggle('cursor-not-allowed', !autoBackupEnabledCheckbox.checked);
     }
 });
 

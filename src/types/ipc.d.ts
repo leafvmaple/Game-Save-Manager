@@ -4,9 +4,11 @@
  */
 
 import { Game } from './game';
-import { BackupResult, RestoreResult } from './backup';
+import { RestoreResult } from './backup';
 import { AppSettings, SettingsKey, SettingsValue } from './settings';
 import { AppStatus } from './common';
+
+type RendererStatusKey = Exclude<keyof AppStatus, 'auto_backuping'>;
 
 /**
  * IPC channel names
@@ -48,8 +50,8 @@ export type IpcEventChannel =
   | 'update-restore-table'
   | 'show-alert'
   | 'apply-theme'
-  | 'backup-progress'
-  | 'restore-progress';
+  | 'apply-language'
+  | 'update-progress';
 
 /**
  * IPC API exposed to renderer process
@@ -72,7 +74,7 @@ export interface IpcApi {
   invoke(channel: 'get-uuid'): Promise<string>;
   invoke(channel: 'get-icon-map'): Promise<{ [key: string]: string }>;
   invoke(channel: 'fetch-backup-table-data'): Promise<Game[]>;
-  invoke(channel: 'backup-game', gameObj: any): Promise<BackupResult>;
+  invoke(channel: 'backup-game', gameObj: any): Promise<string | null>;
   invoke(channel: 'fetch-restore-table-data'): Promise<Game[]>;
   invoke(channel: 'restore-game', gameObj: any, userActionForAll: any): Promise<RestoreResult>;
   invoke(channel: 'get-status'): Promise<AppStatus>;
@@ -84,7 +86,7 @@ export interface IpcApi {
   send(channel: 'save-settings', key: SettingsKey, value: any): void;
   send(channel: 'load-theme'): void;
   send(channel: 'migrate-backups', newBackupPath: string): void;
-  send(channel: 'update-status', statusKey: keyof AppStatus, statusValue: boolean): void;
+  send(channel: 'update-status', statusKey: RendererStatusKey, statusValue: boolean): void;
 
   // Receive methods (listen to events from main process)
   receive(channel: IpcEventChannel, callback: (...args: any[]) => void): void;
