@@ -36,9 +36,7 @@ vi.mock('../../src/main/gameData', () => ({
   getGameData: () => mocks.gameData,
 }));
 
-vi.mock('../../src/main/global', () => ({
-  calculateDirectorySize: vi.fn(),
-  getMainWindow: vi.fn(),
+vi.mock('../../src/main/platformPlaceholders', () => ({
   osKeyMap: {
     win32: 'win',
     darwin: 'mac',

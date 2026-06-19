@@ -6,12 +6,9 @@ import {
   getLatestResolvedPathMTime,
   shouldAutoBackupGame,
 } from './backupMetadata';
-import {
-  getAppStatus,
-  getMainWindow,
-  getSettings,
-  updateAppStatus,
-} from './global';
+import { getAppStatus, updateAppStatus } from './appStatus';
+import { getSettings } from './settingsService';
+import { getMainWindow } from './windowManager';
 
 const DEFAULT_AUTO_BACKUP_INTERVAL_MINUTES = 30;
 const MIN_AUTO_BACKUP_INTERVAL_MINUTES = 5;

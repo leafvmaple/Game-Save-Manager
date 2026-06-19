@@ -18,7 +18,7 @@ vi.mock('original-fs', async () => {
   return { ...actualFs, default: actualFs };
 });
 
-vi.mock('../../src/main/global', () => ({
+vi.mock('../../src/main/settingsService', () => ({
   getSettings: () => mocks.settings,
 }));
 

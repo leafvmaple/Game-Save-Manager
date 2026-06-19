@@ -3,7 +3,7 @@ import path from 'path';
 import { globSync } from 'glob';
 import WinReg from 'winreg';
 import { getGameData } from './gameData';
-import { placeholderMapping, placeholderIdentifier } from './global';
+import { placeholderMapping, placeholderIdentifier } from './platformPlaceholders';
 import type { Game, ResolvedPath } from '../types/game';
 import type { BackupConfig, BackupPath } from '../types/backup';
 

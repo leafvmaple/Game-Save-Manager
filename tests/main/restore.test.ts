@@ -34,12 +34,18 @@ vi.mock('../../src/main/gameData', () => ({
   getGameData: () => mocks.gameData,
 }));
 
-vi.mock('../../src/main/global', () => ({
+vi.mock('../../src/main/fileOps', () => ({
   calculateDirectorySize: vi.fn(),
   copyFolder: vi.fn(),
   ensureWritable: vi.fn(),
+}));
+
+vi.mock('../../src/main/settingsService', () => ({
   getGameDisplayName: vi.fn((game: { title?: string }) => game.title || 'Unknown Game'),
   getSettings: () => mocks.settings,
+}));
+
+vi.mock('../../src/main/platformPlaceholders', () => ({
   placeholderMapping: {
     '{{p|username}}': 'Player',
     '{{p|userprofile}}': 'C:\\Users\\Player',

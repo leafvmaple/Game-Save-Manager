@@ -36,10 +36,16 @@ vi.mock('i18next', () => ({
   },
 }));
 
-vi.mock('../../src/main/global', () => ({
+vi.mock('../../src/main/settingsService', () => ({
   getSettings: () => mocks.settings,
+}));
+
+vi.mock('../../src/main/appStatus', () => ({
   getAppStatus: () => mocks.status,
   updateAppStatus: mocks.updateAppStatus,
+}));
+
+vi.mock('../../src/main/windowManager', () => ({
   getMainWindow: () => ({
     webContents: {
       send: (...args: unknown[]) => mocks.sent.push(args),

@@ -8,8 +8,10 @@ import i18next from 'i18next';
 import moment from 'moment';
 
 import { getGameData } from './gameData';
-import { getGameDisplayName, calculateDirectorySize, ensureWritable, copyFolder, placeholderMapping, getSettings } from './global';
 import { validateBackupInstance } from './backupMetadata';
+import { calculateDirectorySize, copyFolder, ensureWritable } from './fileOps';
+import { placeholderMapping } from './platformPlaceholders';
+import { getGameDisplayName, getSettings } from './settingsService';
 
 const execPromise = util.promisify(exec);
 

@@ -3,7 +3,7 @@ import moment from 'moment';
 import path from 'path';
 import type { Dirent } from 'fs';
 
-import { getSettings } from './global';
+import { getSettings } from './settingsService';
 import type { Game, ResolvedPath } from '../types/game';
 import type {
   BackupChangeStatus,
