@@ -36,51 +36,43 @@ const loadSettings = (): void => {
         const rawSettings = JSON.parse(data) as unknown;
         appSettings = normalizeSettings(rawSettings, defaultSettings);
         if (JSON.stringify(appSettings) !== JSON.stringify(rawSettings)) {
-            fs.writeFileSync(settingsPath, JSON.stringify(appSettings), 'utf8');
+            writeSettingsFile(settingsPath, appSettings);
         }
     } catch (err) {
         console.error('Error loading settings, using defaults:', err);
-        fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings), 'utf8');
+        writeSettingsFile(settingsPath, defaultSettings);
         appSettings = defaultSettings;
     }
 };
 
-const saveSettings = <K extends SettingsKey>(key: K, value: SettingsValue<K>): void => {
+const saveSettings = <K extends SettingsKey>(key: K, value: SettingsValue<K>): Promise<void> => {
     const userDataPath = app.getPath('userData');
     const settingsPath = path.join(userDataPath, 'GSM Settings', 'settings.json');
     appSettings[key] = value;
 
-    writeQueue = writeQueue.then(() => {
-        return new Promise<void>((resolve, reject) => {
-            fs.writeFile(settingsPath, JSON.stringify(appSettings), (writeErr) => {
-                if (writeErr) {
-                    console.error('Error saving settings:', writeErr);
-                    reject(writeErr);
-                    return;
-                }
+    writeQueue = writeQueue.then(async () => {
+        writeSettingsFile(settingsPath, appSettings);
 
-                console.log(`Settings updated successfully: ${key}: ${value}`);
-                if (key === 'theme') {
-                    BrowserWindow.getAllWindows().forEach(window => window.webContents.send('apply-theme', value));
-                }
-                if (key === 'gameInstalls') {
-                    getMainWindow()?.webContents.send('update-backup-table');
-                }
-                if (['excludedBackupPatterns', 'backupSizeWarningEnabled', 'backupSizeWarningThresholdMb', 'backupSizeWarningMultiplier'].includes(key)) {
-                    getMainWindow()?.webContents.send('update-backup-table');
-                }
-                if (key === 'language') {
-                    i18next.changeLanguage(value as AppSettings['language']).then(() => {
-                        BrowserWindow.getAllWindows().forEach(window => window.webContents.send('apply-language'));
-                        rebuildApplicationMenu();
-                        resolve();
-                    }).catch(reject);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    }).catch(err => console.error('Error in write queue:', err));
+        console.log(`Settings updated successfully: ${key}: ${value}`);
+        if (key === 'theme') {
+            BrowserWindow.getAllWindows().forEach(window => window.webContents.send('apply-theme', value));
+        }
+        if (key === 'gameInstalls') {
+            getMainWindow()?.webContents.send('update-backup-table');
+        }
+        if (['excludedBackupPatterns', 'backupSizeWarningEnabled', 'backupSizeWarningThresholdMb', 'backupSizeWarningMultiplier'].includes(key)) {
+            getMainWindow()?.webContents.send('update-backup-table');
+        }
+        if (key === 'language') {
+            await i18next.changeLanguage(value as AppSettings['language']);
+            BrowserWindow.getAllWindows().forEach(window => window.webContents.send('apply-language'));
+            rebuildApplicationMenu();
+        }
+    }).catch(err => {
+        console.error('Error in write queue:', err);
+    });
+
+    return writeQueue;
 };
 
 const getSettings = (): AppSettings => appSettings;
@@ -89,6 +81,25 @@ const getGameDisplayName = (gameObj: { title: string; zh_CN?: string | null }) =
     return appSettings.language === 'en_US'
         ? gameObj.title
         : (appSettings.language === 'zh_CN' ? gameObj.zh_CN || gameObj.title : gameObj.title);
+};
+
+const writeSettingsFile = (settingsPath: string, settings: AppSettings): void => {
+    const temporaryPath = `${settingsPath}.tmp`;
+    const backupPath = `${settingsPath}.bak`;
+
+    try {
+        fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+        fs.writeFileSync(temporaryPath, JSON.stringify(settings), 'utf8');
+        if (fs.existsSync(settingsPath)) {
+            fs.copyFileSync(settingsPath, backupPath);
+        }
+        fs.renameSync(temporaryPath, settingsPath);
+    } catch (error) {
+        if (fs.existsSync(temporaryPath)) {
+            fs.unlinkSync(temporaryPath);
+        }
+        throw error;
+    }
 };
 
 export {

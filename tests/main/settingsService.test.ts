@@ -35,7 +35,7 @@ vi.mock('../../src/main/windowManager', () => ({
 }));
 
 import { SETTINGS_SCHEMA_VERSION } from '../../src/main/settingsSchema';
-import { getSettings, loadSettings } from '../../src/main/settingsService';
+import { getSettings, loadSettings, saveSettings } from '../../src/main/settingsService';
 
 describe('settings service', () => {
   let tempDir: string;
@@ -104,6 +104,33 @@ describe('settings service', () => {
       pinnedGames: ['ok_id'],
     });
     expect(JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'))).toEqual(getSettings());
+  });
+
+  it('writes settings through a temporary file and keeps a backup', async () => {
+    loadSettings();
+    const originalSettings = JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'));
+
+    await saveSettings('theme', 'light');
+
+    expect(JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'))).toMatchObject({
+      theme: 'light',
+    });
+    expect(JSON.parse(fs.readFileSync(`${getSettingsPath()}.bak`, 'utf8'))).toEqual(originalSettings);
+    expect(fs.existsSync(`${getSettingsPath()}.tmp`)).toBe(false);
+  });
+
+  it('removes the temporary file when atomic replacement fails', async () => {
+    loadSettings();
+    const originalSettings = JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'));
+    const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementationOnce(() => {
+      throw new Error('rename failed');
+    });
+
+    await saveSettings('theme', 'light');
+
+    expect(renameSpy).toHaveBeenCalledOnce();
+    expect(JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'))).toEqual(originalSettings);
+    expect(fs.existsSync(`${getSettingsPath()}.tmp`)).toBe(false);
   });
 
   function getSettingsPath(): string {
