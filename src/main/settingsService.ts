@@ -3,6 +3,7 @@ import fs from 'fs';
 import i18next from 'i18next';
 import path from 'path';
 
+import { createDefaultSettings, normalizeSettings } from './settingsSchema';
 import { getMainWindow, rebuildApplicationMenu } from './windowManager';
 import type { AppSettings, Language, SettingsKey, SettingsValue } from '../types/settings';
 
@@ -26,28 +27,17 @@ const loadSettings = (): void => {
     const systemLocale = app.getLocale();
     const detectedLanguage = localeMapping[systemLocale] || 'en_US';
 
-    const defaultSettings: AppSettings = {
-        theme: 'dark',
-        language: detectedLanguage,
-        backupPath: path.join(appDataPath, 'GSM Backups'),
-        maxBackups: 5,
-        autoAppUpdate: true,
-        autoDbUpdate: false,
-        autoBackupEnabled: false,
-        autoBackupInterval: 30,
-        excludedBackupPatterns: [] as string[],
-        backupSizeWarningEnabled: true,
-        backupSizeWarningThresholdMb: 1024,
-        backupSizeWarningMultiplier: 3,
-        gameInstalls: 'uninitialized',
-        pinnedGames: [] as string[]
-    };
+    const defaultSettings = createDefaultSettings(appDataPath, detectedLanguage);
 
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 
     try {
         const data = fs.readFileSync(settingsPath, 'utf8');
-        appSettings = { ...defaultSettings, ...(JSON.parse(data) as Partial<AppSettings>) };
+        const rawSettings = JSON.parse(data) as unknown;
+        appSettings = normalizeSettings(rawSettings, defaultSettings);
+        if (JSON.stringify(appSettings) !== JSON.stringify(rawSettings)) {
+            fs.writeFileSync(settingsPath, JSON.stringify(appSettings), 'utf8');
+        }
     } catch (err) {
         console.error('Error loading settings, using defaults:', err);
         fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings), 'utf8');

@@ -16,6 +16,7 @@ export type Theme = 'light' | 'dark';
  * Application settings interface
  */
 export interface AppSettings {
+  settingsSchemaVersion: number;
   language: Language;
   theme: Theme;
   backupPath: string;
