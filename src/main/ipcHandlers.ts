@@ -14,7 +14,7 @@ import { validateLatestBackupForGame } from './backupMetadata';
 import { backupGame, getGameDataFromDB, updateDatabase } from './backup';
 import { detectGamePaths, getGameData } from './gameData';
 import { getGameDataForRestore, restoreGame } from './restore';
-import { getAppStatus, updateAppStatus } from './appStatus';
+import { AppStatusBusyError, getAppStatus, updateAppStatus, withAppStatus } from './appStatus';
 import type { AppStatusKey } from './appStatus';
 import { getNewestBackup, moveFilesWithProgress } from './backupMigration';
 import { openAllowedExternalUrl } from './externalLinks';
@@ -31,6 +31,13 @@ type SanitizedSettingsUpdate = {
 const supportedLanguages = new Set<SettingsValue<'language'>>(['en_US', 'zh_CN', 'zh_TW']);
 
 const allowedStatusKeys = new Set<string>(['backuping', 'restoring', 'migrating', 'updating_db']);
+const statusMessageKeys: Record<AppStatusKey, string> = {
+    backuping: 'alert.wait_for_backup',
+    auto_backuping: 'alert.wait_for_backup',
+    restoring: 'alert.wait_for_restore',
+    migrating: 'alert.wait_for_migrate',
+    updating_db: 'alert.wait_for_updating_db',
+};
 
 const isSafeId = (value: unknown): value is string => {
     return typeof value === 'string' && /^[a-zA-Z0-9_-]+$/.test(value);
@@ -38,6 +45,15 @@ const isSafeId = (value: unknown): value is string => {
 
 const isSupportedLanguage = (value: string): value is SettingsValue<'language'> => {
     return supportedLanguages.has(value as SettingsValue<'language'>);
+};
+
+const getStatusBusyMessage = (error: unknown): string | null => {
+    if (!(error instanceof AppStatusBusyError)) {
+        return null;
+    }
+
+    const activeStatusKey = error.activeStatusKeys[0];
+    return i18next.t(statusMessageKeys[activeStatusKey] || 'alert.wait_for_backup');
 };
 
 const sanitizeSettingsValue = (key: string, value: unknown): SanitizedSettingsUpdate | null => {
@@ -314,7 +330,15 @@ const registerIpcHandlers = () => {
         if (!gameObj || !isSafeId(String(gameObj.wiki_page_id))) {
             return i18next.t('alert.backup_process_error_display');
         }
-        return await backupGame(gameObj);
+        try {
+            return await withAppStatus('backuping', () => backupGame(gameObj));
+        } catch (error) {
+            const busyMessage = getStatusBusyMessage(error);
+            if (busyMessage) {
+                return busyMessage;
+            }
+            throw error;
+        }
     });
 
     ipcMain.handle('fetch-restore-table-data', async () => {
@@ -331,7 +355,15 @@ const registerIpcHandlers = () => {
         if (!gameObj || !isSafeId(String(gameObj.wiki_page_id))) {
             return { action: null, error: i18next.t('alert.restore_process_error_display') };
         }
-        return await restoreGame(gameObj, userActionForAll);
+        try {
+            return await withAppStatus('restoring', () => restoreGame(gameObj, userActionForAll));
+        } catch (error) {
+            const busyMessage = getStatusBusyMessage(error);
+            if (busyMessage) {
+                return { action: null, error: busyMessage };
+            }
+            throw error;
+        }
     });
 
     ipcMain.handle('validate-backup', async (event, gameObj: any) => {
@@ -354,7 +386,14 @@ const registerIpcHandlers = () => {
             return;
         }
         const currentBackupPath = getSettings().backupPath;
-        moveFilesWithProgress(currentBackupPath, newBackupPath);
+        moveFilesWithProgress(currentBackupPath, newBackupPath).catch(error => {
+            const busyMessage = getStatusBusyMessage(error);
+            if (busyMessage) {
+                getMainWindow()?.webContents.send('show-alert', 'warning', busyMessage);
+                return;
+            }
+            getMainWindow()?.webContents.send('show-alert', 'modal', i18next.t('alert.error_during_backup_migration'), error instanceof Error ? error.message : String(error));
+        });
     });
 
     ipcMain.handle('get-status', () => {
@@ -366,7 +405,10 @@ const registerIpcHandlers = () => {
             console.warn(`Rejected invalid status update: ${statusKey}`);
             return;
         }
-        updateAppStatus(statusKey as AppStatusKey, statusValue);
+        const updated = updateAppStatus(statusKey as AppStatusKey, statusValue);
+        if (!updated) {
+            console.warn(`Ignored renderer status update while locked: ${statusKey}`);
+        }
     });
 
     ipcMain.handle('get-current-version', () => {
@@ -378,7 +420,16 @@ const registerIpcHandlers = () => {
     });
 
     ipcMain.handle('update-database', async () => {
-        await updateDatabase();
+        try {
+            await withAppStatus('updating_db', () => updateDatabase());
+        } catch (error) {
+            const busyMessage = getStatusBusyMessage(error);
+            if (busyMessage) {
+                getMainWindow()?.webContents.send('show-alert', 'warning', busyMessage);
+                return;
+            }
+            throw error;
+        }
         return;
     });
 };
