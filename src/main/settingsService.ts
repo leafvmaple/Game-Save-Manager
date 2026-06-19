@@ -4,16 +4,17 @@ import i18next from 'i18next';
 import path from 'path';
 
 import { getMainWindow, rebuildApplicationMenu } from './windowManager';
+import type { AppSettings, Language, SettingsKey, SettingsValue } from '../types/settings';
 
-let appSettings: any;
-let writeQueue = Promise.resolve();
+let appSettings: AppSettings;
+let writeQueue: Promise<void> = Promise.resolve();
 
-const loadSettings = () => {
+const loadSettings = (): void => {
     const userDataPath = app.getPath('userData');
     const appDataPath = app.getPath('appData');
     const settingsPath = path.join(userDataPath, 'GSM Settings', 'settings.json');
 
-    const localeMapping: { [key: string]: string } = {
+    const localeMapping: Record<string, Language> = {
         'en-US': 'en_US',
         'zh-Hans-CN': 'zh_CN',
         'zh-Hans-SG': 'zh_CN',
@@ -25,7 +26,7 @@ const loadSettings = () => {
     const systemLocale = app.getLocale();
     const detectedLanguage = localeMapping[systemLocale] || 'en_US';
 
-    const defaultSettings = {
+    const defaultSettings: AppSettings = {
         theme: 'dark',
         language: detectedLanguage,
         backupPath: path.join(appDataPath, 'GSM Backups'),
@@ -46,7 +47,7 @@ const loadSettings = () => {
 
     try {
         const data = fs.readFileSync(settingsPath, 'utf8');
-        appSettings = { ...defaultSettings, ...JSON.parse(data) };
+        appSettings = { ...defaultSettings, ...(JSON.parse(data) as Partial<AppSettings>) };
     } catch (err) {
         console.error('Error loading settings, using defaults:', err);
         fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings), 'utf8');
@@ -54,7 +55,7 @@ const loadSettings = () => {
     }
 };
 
-const saveSettings = (key: string, value: any) => {
+const saveSettings = <K extends SettingsKey>(key: K, value: SettingsValue<K>): void => {
     const userDataPath = app.getPath('userData');
     const settingsPath = path.join(userDataPath, 'GSM Settings', 'settings.json');
     appSettings[key] = value;
@@ -79,7 +80,7 @@ const saveSettings = (key: string, value: any) => {
                     getMainWindow()?.webContents.send('update-backup-table');
                 }
                 if (key === 'language') {
-                    i18next.changeLanguage(value).then(() => {
+                    i18next.changeLanguage(value as AppSettings['language']).then(() => {
                         BrowserWindow.getAllWindows().forEach(window => window.webContents.send('apply-language'));
                         rebuildApplicationMenu();
                         resolve();
@@ -92,9 +93,9 @@ const saveSettings = (key: string, value: any) => {
     }).catch(err => console.error('Error in write queue:', err));
 };
 
-const getSettings = () => appSettings;
+const getSettings = (): AppSettings => appSettings;
 
-const getGameDisplayName = (gameObj: any) => {
+const getGameDisplayName = (gameObj: { title: string; zh_CN?: string | null }) => {
     return appSettings.language === 'en_US'
         ? gameObj.title
         : (appSettings.language === 'zh_CN' ? gameObj.zh_CN || gameObj.title : gameObj.title);

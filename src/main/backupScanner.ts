@@ -115,7 +115,7 @@ async function loadCustomDatabases(): Promise<Game[]> {
 }
 
 async function processGameInstallPaths(
-  gameInstallPaths: string[],
+  gameInstallPaths: string[] | 'uninitialized',
   stmtInstallFolder: sqlite3.Statement,
   customDBs: Game[],
   games: Game[],

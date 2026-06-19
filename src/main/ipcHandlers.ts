@@ -22,22 +22,13 @@ import { osKeyMap } from './platformPlaceholders';
 import { getSettings, saveSettings } from './settingsService';
 import { getCurrentVersion, getLatestVersion } from './updateService';
 import { getMainWindow } from './windowManager';
+import type { SettingsKey, SettingsValue } from '../types/settings';
 
-type SettingsKey =
-    | 'theme'
-    | 'language'
-    | 'backupPath'
-    | 'maxBackups'
-    | 'autoAppUpdate'
-    | 'autoDbUpdate'
-    | 'autoBackupEnabled'
-    | 'autoBackupInterval'
-    | 'excludedBackupPatterns'
-    | 'backupSizeWarningEnabled'
-    | 'backupSizeWarningThresholdMb'
-    | 'backupSizeWarningMultiplier'
-    | 'gameInstalls'
-    | 'pinnedGames';
+type SanitizedSettingsUpdate = {
+    [K in SettingsKey]: [K, SettingsValue<K>]
+}[SettingsKey];
+
+const supportedLanguages = new Set<SettingsValue<'language'>>(['en_US', 'zh_CN', 'zh_TW']);
 
 const allowedStatusKeys = new Set<string>(['backuping', 'restoring', 'migrating', 'updating_db']);
 
@@ -45,12 +36,18 @@ const isSafeId = (value: unknown): value is string => {
     return typeof value === 'string' && /^[a-zA-Z0-9_-]+$/.test(value);
 };
 
-const sanitizeSettingsValue = (key: string, value: unknown): [SettingsKey, any] | null => {
+const isSupportedLanguage = (value: string): value is SettingsValue<'language'> => {
+    return supportedLanguages.has(value as SettingsValue<'language'>);
+};
+
+const sanitizeSettingsValue = (key: string, value: unknown): SanitizedSettingsUpdate | null => {
     switch (key) {
         case 'theme':
             return value === 'light' || value === 'dark' ? [key, value] : null;
-        case 'language':
-            return ['en_US', 'zh_CN', 'zh_TW'].includes(String(value)) ? [key, String(value)] : null;
+        case 'language': {
+            const language = String(value);
+            return isSupportedLanguage(language) ? [key, language] : null;
+        }
         case 'backupPath':
             return typeof value === 'string' && path.isAbsolute(value) ? [key, value] : null;
         case 'maxBackups': {
